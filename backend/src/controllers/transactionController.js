@@ -231,8 +231,8 @@ const getStatistics = async (req, res) => {
         `SELECT DATE_FORMAT(transaction_date, '%Y') as label, COALESCE(SUM(amount), 0) as amount
          FROM transactions 
          WHERE user_id = ? AND type = ? AND (status = 'active' OR status IS NULL)
-         GROUP BY YEAR(transaction_date)
-         ORDER BY transaction_date ASC
+         GROUP BY YEAR(transaction_date), DATE_FORMAT(transaction_date, '%Y')
+         ORDER BY MIN(transaction_date) ASC
          LIMIT 5`,
         [userId, statType]
       );

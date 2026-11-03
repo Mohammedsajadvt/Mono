@@ -1,0 +1,53 @@
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mono_app/core/network/api_client.dart';
+import 'package:mono_app/core/routes/app_routes.dart';
+import 'package:mono_app/core/storage/secure_storage_service.dart';
+import 'package:mono_app/core/theme/app_theme.dart';
+import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
+import 'package:mono_app/features/auth/bloc/auth_event.dart';
+import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
+import 'package:mono_app/features/expense/bloc/expense_event.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  runApp(const MonoApp());
+}
+
+class MonoApp extends StatelessWidget {
+  final SecureStorageService? secureStorage;
+  final ApiClient? apiClient;
+
+  const MonoApp({
+    super.key,
+    this.secureStorage,
+    this.apiClient,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final storage = secureStorage ?? SecureStorageService();
+    final client = apiClient ?? ApiClient(secureStorage: storage);
+
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider<AuthBloc>(
+          create: (context) =>
+              AuthBloc(secureStorage: storage, apiClient: client)
+                ..add(CheckAuthStatus()),
+        ),
+        BlocProvider<ExpenseBloc>(
+          create: (context) =>
+              ExpenseBloc(apiClient: client)..add(LoadExpensesEvent()),
+        ),
+      ],
+      child: MaterialApp(
+        title: 'Mono - Income & Expense Tracker',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.lightTheme,
+        initialRoute: AppRoutes.splash,
+        onGenerateRoute: AppRoutes.onGenerateRoute,
+      ),
+    );
+  }
+}

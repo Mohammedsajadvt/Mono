@@ -1,0 +1,208 @@
+import 'package:dio/dio.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:mono_app/core/network/api_client.dart';
+import 'package:mono_app/core/storage/secure_storage_service.dart';
+import 'package:mono_app/features/auth/models/user_model.dart';
+import 'package:mono_app/features/auth/bloc/auth_event.dart';
+import 'package:mono_app/features/auth/bloc/auth_state.dart';
+
+class AuthBloc extends Bloc<AuthEvent, AuthState> {
+  final SecureStorageService secureStorage;
+  final ApiClient? apiClient;
+
+  AuthBloc({
+    required this.secureStorage,
+    this.apiClient,
+  }) : super(AuthInitial()) {
+    on<CheckAuthStatus>(_onCheckAuthStatus);
+    on<LoginRequested>(_onLoginRequested);
+    on<SignupRequested>(_onSignupRequested);
+    on<LogoutRequested>(_onLogoutRequested);
+    on<UpdateProfileAvatar>(_onUpdateProfileAvatar);
+  }
+
+  ApiClient get _client => apiClient ?? ApiClient(secureStorage: secureStorage);
+
+  Future<void> _onCheckAuthStatus(
+    CheckAuthStatus event,
+    Emitter<AuthState> emit,
+  ) async {
+    final token = await secureStorage.getAccessToken();
+    final cachedAvatar = await secureStorage.getUserAvatar();
+
+    if (token != null && token.isNotEmpty) {
+      try {
+        final response = await _client.dio.get('/auth/me');
+        if (response.statusCode == 200 && response.data['user'] != null) {
+          final u = response.data['user'];
+          emit(Authenticated(UserModel(
+            id: u['id'].toString(),
+            name: u['name'] ?? 'User',
+            email: u['email'] ?? '',
+            username:
+                '@${(u['name'] ?? 'user').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+            avatarUrl: cachedAvatar ?? u['avatar_url'] ?? 'assets/images/avatar_clean.png',
+          )));
+          return;
+        }
+      } catch (_) {
+        // Token expired or invalid
+      }
+    }
+
+    emit(Unauthenticated());
+  }
+
+  Future<void> _onLoginRequested(
+    LoginRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    if (event.email.trim().isEmpty || event.password.trim().isEmpty) {
+      emit(const AuthFailure('Please enter both email and password'));
+      return;
+    }
+
+    if (!event.email.contains('@')) {
+      emit(const AuthFailure('Please enter a valid email address'));
+      return;
+    }
+
+    final cachedAvatar = await secureStorage.getUserAvatar();
+
+    try {
+      final response = await _client.dio.post('/auth/login', data: {
+        'email': event.email.trim(),
+        'password': event.password.trim(),
+      });
+
+      if (response.statusCode == 200 && response.data['success'] == true) {
+        final token = response.data['token'];
+        final userData = response.data['user'];
+
+        await secureStorage.saveTokens(
+          accessToken: token,
+          refreshToken: token,
+        );
+        await secureStorage.saveUserId(userData['id'].toString());
+
+        final user = UserModel(
+          id: userData['id'].toString(),
+          name: userData['name'] ?? 'User',
+          email: userData['email'] ?? event.email.trim(),
+          username:
+              '@${(userData['name'] ?? 'user').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+          avatarUrl: cachedAvatar ?? userData['avatar_url'] ?? 'assets/images/avatar_clean.png',
+        );
+
+        emit(Authenticated(user));
+        return;
+      } else {
+        emit(AuthFailure(response.data['message']?.toString() ?? 'Login failed'));
+      }
+    } catch (e) {
+      if (e is DioException &&
+          e.response?.data != null &&
+          e.response?.data is Map &&
+          e.response?.data['message'] != null) {
+        emit(AuthFailure(e.response!.data['message'].toString()));
+      } else {
+        emit(const AuthFailure('Unable to connect to server. Please try again.'));
+      }
+    }
+  }
+
+  Future<void> _onSignupRequested(
+    SignupRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+
+    if (event.name.trim().isEmpty) {
+      emit(const AuthFailure('Please enter your full name'));
+      return;
+    }
+
+    if (event.email.trim().isEmpty || !event.email.contains('@')) {
+      emit(const AuthFailure('Please enter a valid email address'));
+      return;
+    }
+
+    if (event.password.length < 6) {
+      emit(const AuthFailure('Password must be at least 6 characters'));
+      return;
+    }
+
+    final cachedAvatar = await secureStorage.getUserAvatar();
+
+    try {
+      final response = await _client.dio.post('/auth/register', data: {
+        'name': event.name.trim(),
+        'email': event.email.trim(),
+        'password': event.password.trim(),
+      });
+
+      if (response.statusCode == 201 && response.data['success'] == true) {
+        final token = response.data['token'];
+        final userData = response.data['user'];
+
+        await secureStorage.saveTokens(
+          accessToken: token,
+          refreshToken: token,
+        );
+        await secureStorage.saveUserId(userData['id'].toString());
+
+        final user = UserModel(
+          id: userData['id'].toString(),
+          name: userData['name'] ?? event.name.trim(),
+          email: userData['email'] ?? event.email.trim(),
+          username:
+              '@${(userData['name'] ?? event.name.trim()).toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+          avatarUrl: cachedAvatar ?? 'assets/images/avatar_clean.png',
+        );
+
+        emit(Authenticated(user));
+        return;
+      } else {
+        emit(AuthFailure(response.data['message']?.toString() ?? 'Sign up failed'));
+      }
+    } catch (e) {
+      if (e is DioException &&
+          e.response?.data != null &&
+          e.response?.data is Map &&
+          e.response?.data['message'] != null) {
+        emit(AuthFailure(e.response!.data['message'].toString()));
+      } else {
+        emit(const AuthFailure('Registration failed. Please check details and try again.'));
+      }
+    }
+  }
+
+  Future<void> _onUpdateProfileAvatar(
+    UpdateProfileAvatar event,
+    Emitter<AuthState> emit,
+  ) async {
+    await secureStorage.saveUserAvatar(event.avatarUrl);
+
+    if (state is Authenticated) {
+      final updatedUser = (state as Authenticated).user.copyWith(avatarUrl: event.avatarUrl);
+      emit(Authenticated(updatedUser));
+
+      try {
+        await _client.dio.put('/auth/profile', data: {
+          'avatar_url': event.avatarUrl,
+        });
+      } catch (_) {}
+    }
+  }
+
+  Future<void> _onLogoutRequested(
+    LogoutRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    emit(AuthLoading());
+    await secureStorage.clearAll();
+    emit(Unauthenticated());
+  }
+}

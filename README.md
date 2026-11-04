@@ -6,6 +6,7 @@
 
 **A modern, production-grade personal finance and smart expense tracking ecosystem built with Flutter, BLoC, Node.js, Express, and TiDB Cloud (MySQL).**
 
+[![Install on Android](https://img.shields.io/badge/Instant%20Install-BetaDrop-2563EB?logo=android&logoColor=white&style=for-the-badge)](https://betadrop.app/i/qQhg9L)
 [![Download APK](https://img.shields.io/badge/Download%20APK-Google%20Drive-34A853?logo=google-drive&logoColor=white&style=for-the-badge)](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
 
 <br/>
@@ -23,22 +24,25 @@
 
 ---
 
-## 📥 Download Release APK (Android)
+## 📥 Download & Install Release APK (Android)
 
 Get the latest production-ready build for Android:
 
+[![BetaDrop Direct Install](https://img.shields.io/badge/Instant_Install-BetaDrop-2563EB?style=for-the-badge&logo=android&logoColor=white)](https://betadrop.app/i/qQhg9L)
 [![Download APK Button](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_Mono_APK_v1.0.0-Google_Drive-34A853?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
 
-- **Direct Google Drive Link**: [Mono Release APK Folder](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
+- 📲 **Instant 1-Click Install Link (BetaDrop)**: [https://betadrop.app/i/qQhg9L](https://betadrop.app/i/qQhg9L) *(Guest link: [https://betadrop.app/i/fCW2Qm](https://betadrop.app/i/fCW2Qm))*
+- 📂 **Direct Google Drive Link**: [Mono Release APK Folder](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
 - **Version**: `v1.0.0 (Production Release)`
+- **Package**: `com.mono.mono_app`
 - **Target OS**: Android 6.0+ (API Level 23+)
-- **Cloud Backend**: Connected out-of-the-box to **Render** & **TiDB Cloud**
+- **Cloud Backend**: Live connected to **Render** & **TiDB Cloud MySQL**
 
 #### Quick Installation Guide:
-1. Tap the link above to open Google Drive and download **`Mono_Release_v1.0.0.apk`** (or `app-release.apk`).
-2. Open the downloaded file on your Android smartphone.
-3. If prompted, allow *"Install from Unknown Sources"* in your device settings.
-4. Launch Mono and start managing your expenses & income smarter!
+1. Tap the **BetaDrop Instant Install Link** or scan the QR code on your phone for immediate installation.
+2. Alternatively, download **`Mono_Release_v1.0.0.apk`** from Google Drive.
+3. Open the downloaded file on your Android device and allow *"Install from Unknown Sources"* if prompted.
+4. Launch Mono and start tracking your income and expenses smarter!
 
 ---
 

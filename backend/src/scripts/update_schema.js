@@ -13,7 +13,7 @@ async function updateSchema() {
       console.log('Added currency column');
     }
     console.log('Schema update complete');
-  } catch(e) {
+  } catch (e) {
     console.error('Schema update error:', e);
   } finally {
     process.exit(0);

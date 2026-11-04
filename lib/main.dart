@@ -6,6 +6,7 @@ import 'package:mono_app/core/storage/secure_storage_service.dart';
 import 'package:mono_app/core/theme/app_theme.dart';
 import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
 import 'package:mono_app/features/auth/bloc/auth_event.dart';
+import 'package:mono_app/features/auth/bloc/auth_state.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 
@@ -41,12 +42,23 @@ class MonoApp extends StatelessWidget {
               ExpenseBloc(apiClient: client)..add(LoadExpensesEvent()),
         ),
       ],
-      child: MaterialApp(
-        title: 'Mono - Income & Expense Tracker',
-        debugShowCheckedModeBanner: false,
-        theme: AppTheme.lightTheme,
-        initialRoute: AppRoutes.splash,
-        onGenerateRoute: AppRoutes.onGenerateRoute,
+      child: BlocListener<AuthBloc, AuthState>(
+        listener: (context, authState) {
+          if (authState is Authenticated) {
+            // Strictly fetch fresh data for this specific authenticated user
+            context.read<ExpenseBloc>().add(LoadExpensesEvent());
+          } else if (authState is Unauthenticated) {
+            // Wipe all in-memory data on logout to ensure 100% user data isolation
+            context.read<ExpenseBloc>().add(ResetExpenseEvent());
+          }
+        },
+        child: MaterialApp(
+          title: 'Mono - Income & Expense Tracker',
+          debugShowCheckedModeBanner: false,
+          theme: AppTheme.lightTheme,
+          initialRoute: AppRoutes.splash,
+          onGenerateRoute: AppRoutes.onGenerateRoute,
+        ),
       ),
     );
   }

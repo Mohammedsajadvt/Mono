@@ -518,24 +518,22 @@ const deleteTransaction = async (req, res) => {
     const userId = req.user.id;
     const txId = req.params.id;
 
-    // Soft delete: Mark status as 'inactive'
+    // Permanently delete transaction strictly for this user
     const [result] = await pool.execute(
-      `UPDATE transactions 
-       SET status = 'inactive' 
-       WHERE id = ? AND user_id = ?`,
+      'DELETE FROM transactions WHERE id = ? AND user_id = ?',
       [txId, userId]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Transaction not found.',
+        message: 'Transaction not found or unauthorized.',
       });
     }
 
     return res.json({
       success: true,
-      message: 'Transaction status set to inactive. Hidden from app.',
+      message: 'Transaction permanently deleted from database.',
     });
   } catch (error) {
     console.error('[TransactionController.deleteTransaction] Error:', error);

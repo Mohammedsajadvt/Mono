@@ -22,7 +22,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   String? _selectedCategory;
   String _amount = '0.00';
   DateTime _selectedDate = DateTime.now();
-  String? _scannedMerchant;
   final TextEditingController _titleController = TextEditingController();
 
   @override
@@ -95,9 +94,7 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
 
     final catName = _selectedCategory ?? (_isIncome ? 'Salary' : 'General');
     final enteredTitle = _titleController.text.trim();
-    final txTitle = enteredTitle.isNotEmpty
-        ? enteredTitle
-        : (_scannedMerchant ?? catName);
+    final txTitle = enteredTitle.isNotEmpty ? enteredTitle : catName;
 
     final transaction = TransactionModel(
       id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
@@ -161,169 +158,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
           ),
         ),
       ),
-    );
-  }
-
-  void _showReceiptScannerSheet(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.transparent,
-      builder: (sheetCtx) => Container(
-        decoration: const BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        ),
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 44,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade300,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              children: [
-                Container(
-                  width: 38,
-                  height: 38,
-                  decoration: BoxDecoration(
-                    color: AppColors.primary.withOpacity(0.12),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: const Icon(Icons.document_scanner_rounded,
-                      color: AppColors.primary, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'AI Smart Receipt Scanner',
-                        style: GoogleFonts.inter(
-                          fontSize: 18,
-                          fontWeight: FontWeight.w700,
-                          color: const Color(0xFF222222),
-                        ),
-                      ),
-                      Text(
-                        'Extract amount, shop, date & category instantly',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: const Color(0xFF777777),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Text(
-              'SELECT OR SCAN RECEIPT SAMPLE:',
-              style: GoogleFonts.inter(
-                fontSize: 11,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF888888),
-                letterSpacing: 0.5,
-              ),
-            ),
-            const SizedBox(height: 10),
-            _buildReceiptSampleTile(
-              sheetCtx,
-              title: 'Starbucks Coffee',
-              amount: '350.00',
-              category: 'Grocery',
-              icon: Icons.coffee_rounded,
-            ),
-            _buildReceiptSampleTile(
-              sheetCtx,
-              title: 'Reliance Smart Supermarket',
-              amount: '1450.00',
-              category: 'Grocery',
-              icon: Icons.shopping_cart_outlined,
-            ),
-            _buildReceiptSampleTile(
-              sheetCtx,
-              title: 'Netflix Subscription',
-              amount: '499.00',
-              category: 'Entertainment',
-              icon: Icons.movie_outlined,
-            ),
-            _buildReceiptSampleTile(
-              sheetCtx,
-              title: 'Indian Oil Petrol Pump',
-              amount: '1200.00',
-              category: 'Transport',
-              icon: Icons.local_gas_station_rounded,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildReceiptSampleTile(
-    BuildContext sheetCtx, {
-    required String title,
-    required String amount,
-    required String category,
-    required IconData icon,
-  }) {
-    return ListTile(
-      contentPadding: EdgeInsets.zero,
-      leading: Container(
-        width: 40,
-        height: 40,
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4F6F6),
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Icon(icon, color: AppColors.primary, size: 20),
-      ),
-      title: Text(
-        title,
-        style: GoogleFonts.inter(fontSize: 14, fontWeight: FontWeight.w600),
-      ),
-      subtitle: Text(
-        'Category: $category',
-        style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFF888888)),
-      ),
-      trailing: Text(
-        '₹$amount',
-        style: GoogleFonts.inter(
-          fontSize: 15,
-          fontWeight: FontWeight.w700,
-          color: AppColors.primary,
-        ),
-      ),
-      onTap: () {
-        Navigator.of(sheetCtx).pop();
-        setState(() {
-          _amount = amount;
-          _selectedCategory = category;
-          _selectedDate = DateTime.now();
-          _scannedMerchant = title;
-          _titleController.text = title;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('✨ AI Extracted: ₹$amount for $title'),
-            backgroundColor: AppColors.primary,
-            behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-          ),
-        );
-      },
     );
   }
 
@@ -711,7 +545,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                                     if (val != null) {
                                       setState(() {
                                         _selectedCategory = val;
-                                        _scannedMerchant = null;
                                       });
                                     }
                                   },
@@ -831,57 +664,6 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             ),
                           ),
                         ),
-
-                        if (!_isIncome) ...[
-                          const SizedBox(height: 16),
-                          // INVOICE / AI RECEIPT SCANNER Container
-                          Text(
-                            'INVOICE & RECEIPT SCANNER',
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: const Color(0xFF888888),
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 8),
-                          GestureDetector(
-                            onTap: () => _showReceiptScannerSheet(context),
-                            child: Container(
-                              width: double.infinity,
-                              height: 52,
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFF0FDF4),
-                                borderRadius: BorderRadius.circular(14),
-                                border: Border.all(
-                                  color: const Color(0xFF86EFAC),
-                                  width: 1.2,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  const Icon(
-                                    Icons.auto_awesome,
-                                    color: Color(0xFF166534),
-                                    size: 18,
-                                  ),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _scannedMerchant != null
-                                        ? 'Scanned: $_scannedMerchant'
-                                        : 'Scan Receipt with AI',
-                                    style: GoogleFonts.inter(
-                                      fontSize: 14,
-                                      fontWeight: FontWeight.w600,
-                                      color: const Color(0xFF166534),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),

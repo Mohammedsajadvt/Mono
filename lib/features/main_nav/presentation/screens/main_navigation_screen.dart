@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
+import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
+import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/home/presentation/screens/home_screen.dart';
 import 'package:mono_app/features/statistics/presentation/screens/statistics_screen.dart';
 import 'package:mono_app/features/categories/presentation/screens/categories_screen.dart';
@@ -16,13 +19,26 @@ class MainNavigationScreen extends StatefulWidget {
 class _MainNavigationScreenState extends State<MainNavigationScreen> {
   int _currentIndex = 0;
 
-  void _onAddExpensePressed() {
-    Navigator.of(context).push(
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        context.read<ExpenseBloc>().add(LoadExpensesEvent());
+      }
+    });
+  }
+
+  void _onAddExpensePressed() async {
+    await Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => const AddExpenseScreen(),
         fullscreenDialog: true,
       ),
     );
+    if (mounted) {
+      context.read<ExpenseBloc>().add(LoadExpensesEvent());
+    }
   }
 
   @override
@@ -133,6 +149,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
         setState(() {
           _currentIndex = index;
         });
+        context.read<ExpenseBloc>().add(LoadExpensesEvent());
       },
       borderRadius: BorderRadius.circular(16),
       child: Center(

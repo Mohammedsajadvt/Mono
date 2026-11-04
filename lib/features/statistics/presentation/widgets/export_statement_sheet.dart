@@ -29,10 +29,10 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
   bool _isLoading = false;
 
   final periods = [
-    {'id': 'monthly', 'label': 'Monthly', 'desc': 'Current Month'},
-    {'id': 'weekly', 'label': 'Weekly', 'desc': 'Last 7 Days'},
-    {'id': 'yearly', 'label': 'Yearly', 'desc': 'Indian FY 26-27'},
-    {'id': 'all', 'label': 'All Time', 'desc': 'Complete Record'},
+    {'id': 'monthly', 'label': 'Monthly', 'desc': 'Current'},
+    {'id': 'weekly', 'label': 'Weekly', 'desc': '7 Days'},
+    {'id': 'yearly', 'label': 'Yearly', 'desc': 'FY 26-27'},
+    {'id': 'all', 'label': 'All Time', 'desc': 'All Records'},
   ];
 
   Future<void> _handleDownloadCsv() async {
@@ -47,45 +47,12 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
       final filename =
           'mono_${_selectedPeriod}_statement_${DateTime.now().millisecondsSinceEpoch}.csv';
       final path = await _exportService.saveCsvToDevice(csvData, filename);
+      await _exportService.copyToClipboard(csvData);
 
       if (!mounted) return;
       Navigator.of(context).pop();
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                '📁 CSV Statement Saved Successfully!',
-                style: GoogleFonts.inter(
-                    fontWeight: FontWeight.w700, color: Colors.white),
-              ),
-              const SizedBox(height: 4),
-              Text(
-                'Saved at: $path',
-                style: GoogleFonts.inter(
-                    fontSize: 11, color: Colors.white.withOpacity(0.9)),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
-          ),
-          backgroundColor: AppColors.primary,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'COPY CSV',
-            textColor: Colors.amberAccent,
-            onPressed: () {
-              _exportService.copyToClipboard(csvData);
-            },
-          ),
-          behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-      );
+      _showExportSuccessDialog(path, csvData, filename);
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,6 +64,145 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  void _showExportSuccessDialog(
+      String path, String csvData, String filename) {
+    showDialog(
+      context: context,
+      builder: (dlgCtx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.12),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.check_circle_rounded,
+                  color: AppColors.primary, size: 26),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Statement Exported!',
+                style: GoogleFonts.inter(
+                    fontSize: 17, fontWeight: FontWeight.w700),
+              ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Your statement has been generated and saved to your device.',
+              style: GoogleFonts.inter(
+                  fontSize: 13, color: const Color(0xFF444444)),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF4F6F6),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: Colors.grey.shade300),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.download_done_rounded,
+                          color: AppColors.primary, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        'File Saved At:',
+                        style: GoogleFonts.inter(
+                          fontSize: 11,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    path,
+                    style: GoogleFonts.inter(
+                      fontSize: 11,
+                      color: const Color(0xFF333333),
+                      fontWeight: FontWeight.w500,
+                    ),
+                    maxLines: 2,
+                    softWrap: true,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: const Color(0xFFE8F5E9),
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.copy_rounded,
+                      color: Color(0xFF2E7D32), size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'CSV data also copied to clipboard for easy sharing!',
+                      style: GoogleFonts.inter(
+                        fontSize: 11,
+                        color: const Color(0xFF2E7D32),
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              _exportService.copyToClipboard(csvData);
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('CSV copied to clipboard again!'),
+                  duration: Duration(seconds: 2),
+                ),
+              );
+            },
+            icon: const Icon(Icons.copy_rounded, size: 16),
+            label: Text(
+              'Copy CSV',
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(dlgCtx).pop(),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.primary,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+            child: Text(
+              'Done',
+              style: GoogleFonts.inter(
+                  color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _handlePreviewStatement() async {
@@ -759,8 +865,10 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                 child: GestureDetector(
                   onTap: () => setState(() => _selectedPeriod = p['id']!),
                   child: Container(
+                    height: 52,
                     margin: const EdgeInsets.symmetric(horizontal: 3),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
                     decoration: BoxDecoration(
                       color: isSel
                           ? AppColors.primary
@@ -773,21 +881,30 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                       ),
                     ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Text(
                           p['label']!,
+                          textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color: isSel ? Colors.white : const Color(0xFF444444),
+                            color:
+                                isSel ? Colors.white : const Color(0xFF444444),
                           ),
                         ),
+                        const SizedBox(height: 2),
                         Text(
                           p['desc']!,
+                          textAlign: TextAlign.center,
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
                           style: GoogleFonts.inter(
                             fontSize: 9,
+                            fontWeight: FontWeight.w500,
                             color: isSel
-                                ? Colors.white.withOpacity(0.85)
+                                ? Colors.white.withOpacity(0.9)
                                 : const Color(0xFF888888),
                           ),
                         ),

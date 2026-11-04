@@ -73,3 +73,5 @@ class DeleteTransactionEvent extends ExpenseEvent {
   @override
   List<Object?> get props => [transactionId];
 }
+
+class ResetExpenseEvent extends ExpenseEvent {}

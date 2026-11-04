@@ -19,6 +19,11 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     on<AddCategoryEvent>(_onAddCategory);
     on<DeleteCategoryEvent>(_onDeleteCategory);
     on<DeleteTransactionEvent>(_onDeleteTransaction);
+    on<ResetExpenseEvent>(_onResetExpense);
+  }
+
+  void _onResetExpense(ResetExpenseEvent event, Emitter<ExpenseState> emit) {
+    emit(ExpenseInitial());
   }
 
   static IconData iconFromName(String? iconName) {

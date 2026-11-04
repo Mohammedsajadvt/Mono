@@ -170,10 +170,27 @@ class ExportService {
   }
 
   Future<String> saveCsvToDevice(String csvData, String filename) async {
-    final directory = await getApplicationDocumentsDirectory();
-    final file = File('${directory.path}/$filename');
-    await file.writeAsString(csvData);
-    return file.path;
+    String? publicDownloadPath;
+    try {
+      if (Platform.isAndroid) {
+        final publicDownloadDir = Directory('/storage/emulated/0/Download');
+        if (publicDownloadDir.existsSync()) {
+          final file = File('${publicDownloadDir.path}/$filename');
+          await file.writeAsString(csvData);
+          publicDownloadPath = file.path;
+        }
+      }
+    } catch (_) {}
+
+    // Always write to app documents directory as safe fallback
+    try {
+      final directory = await getApplicationDocumentsDirectory();
+      final file = File('${directory.path}/$filename');
+      await file.writeAsString(csvData);
+      return publicDownloadPath ?? file.path;
+    } catch (_) {
+      return publicDownloadPath ?? filename;
+    }
   }
 
   Future<void> copyToClipboard(String text) async {

@@ -52,9 +52,16 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF9FAFB),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          context.read<ExpenseBloc>().add(LoadExpensesEvent());
+          await Future.delayed(const Duration(milliseconds: 600));
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
             // Top Curved Teal Header
             Stack(
               clipBehavior: Clip.none,
@@ -286,8 +293,9 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildCategoryCard(BuildContext context, CategoryModel category) {
     return Container(
@@ -351,15 +359,56 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             icon: Icon(Icons.delete_outline_rounded,
                 color: Colors.grey.shade400, size: 20),
             onPressed: () {
-              context.read<ExpenseBloc>().add(DeleteCategoryEvent(category.id));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Removed "${category.name}"'),
-                  backgroundColor: Colors.black87,
-                  behavior: SnackBarBehavior.floating,
+              showDialog(
+                context: context,
+                builder: (dlgCtx) => AlertDialog(
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(18)),
+                  title: Text(
+                    'Delete Category',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w700),
                   ),
+                  content: Text(
+                    'Are you sure you want to permanently delete "${category.name}"?',
+                    style: GoogleFonts.inter(
+                        fontSize: 14, color: const Color(0xFF555555)),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(dlgCtx).pop(),
+                      child: Text('Cancel',
+                          style: GoogleFonts.inter(
+                              color: Colors.grey.shade600)),
+                    ),
+                    ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFE53935),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                      ),
+                      onPressed: () {
+                        Navigator.of(dlgCtx).pop();
+                        context
+                            .read<ExpenseBloc>()
+                            .add(DeleteCategoryEvent(category.id));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(
+                                'Category "${category.name}" deleted permanently.'),
+                            backgroundColor: const Color(0xFFE53935),
+                            behavior: SnackBarBehavior.floating,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text('Delete',
+                          style: GoogleFonts.inter(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700)),
+                    ),
+                  ],
                 ),
               );
             },

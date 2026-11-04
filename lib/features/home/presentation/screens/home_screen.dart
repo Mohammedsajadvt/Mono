@@ -4,13 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
-import 'package:mono_app/core/widgets/mono_avatar_image.dart';
 import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
 import 'package:mono_app/features/auth/bloc/auth_state.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
-import 'package:mono_app/features/expense/models/contact_model.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -21,99 +19,31 @@ class HomeScreen extends StatelessWidget {
     required this.onAddExpensePressed,
   });
 
-  void _showQuickTransferDialog(BuildContext context, String recipientName) {
-    final amountController = TextEditingController();
-    showDialog(
-      context: context,
-      builder: (dialogCtx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: Text(
-          'Quick Transfer to $recipientName',
-          style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700),
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Enter amount to record transfer:',
-              style: GoogleFonts.inter(
-                  fontSize: 13, color: const Color(0xFF666666)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: amountController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              autofocus: true,
-              decoration: InputDecoration(
-                prefixText: '₹ ',
-                hintText: '0.00',
-                border:
-                    OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(dialogCtx).pop(),
-            child: Text('Cancel',
-                style: GoogleFonts.inter(color: Colors.grey.shade600)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              final amount =
-                  double.tryParse(amountController.text.trim()) ?? 0.0;
-              if (amount <= 0) return;
-              Navigator.of(dialogCtx).pop();
-
-              final transaction = TransactionModel(
-                id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
-                title: 'Transfer to $recipientName',
-                category: 'Transfer',
-                amount: amount,
-                type: TransactionType.expense,
-                date: DateTime.now(),
-                iconName: 'transfer',
-              );
-              context.read<ExpenseBloc>().add(AddExpenseEvent(transaction));
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text(
-                      'Transferred ₹${amount.toStringAsFixed(2)} to $recipientName'),
-                  backgroundColor: AppColors.primary,
-                  behavior: SnackBarBehavior.floating,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-              );
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12)),
-            ),
-            child: Text(
-              'Record Transfer',
-              style: GoogleFonts.inter(
-                color: Colors.white,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
+  String _getGreeting() {
+    final hour = DateTime.now().hour;
+    if (hour < 12) {
+      return 'Good morning,';
+    } else if (hour < 17) {
+      return 'Good afternoon,';
+    } else {
+      return 'Good evening,';
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
+      body: RefreshIndicator(
+        color: AppColors.primary,
+        onRefresh: () async {
+          context.read<ExpenseBloc>().add(LoadExpensesEvent());
+          await Future.delayed(const Duration(milliseconds: 600));
+        },
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          child: Column(
+            children: [
             // Top Section with Curved Teal Header and Balance Card
             Stack(
               clipBehavior: Clip.none,
@@ -149,7 +79,7 @@ class HomeScreen extends StatelessWidget {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  'Good afternoon,',
+                                  _getGreeting(),
                                   style: GoogleFonts.inter(
                                     fontSize: 14,
                                     color: Colors.white.withOpacity(0.85),
@@ -570,176 +500,15 @@ class HomeScreen extends StatelessWidget {
               },
             ),
 
-            const SizedBox(height: 16),
-
-            // Send Again Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'Send Again',
-                  style: GoogleFonts.inter(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: const Color(0xFF222222),
-                  ),
-                ),
-              ),
-            ),
-
-            // Send Again Dynamic Row (Fetched from MySQL via API)
-            BlocBuilder<ExpenseBloc, ExpenseState>(
-              builder: (context, expState) {
-                return BlocBuilder<AuthBloc, AuthState>(
-                  builder: (context, authState) {
-                    String? userAvatar;
-                    String userName = 'You';
-                    if (authState is Authenticated) {
-                      userAvatar = authState.user.avatarUrl;
-                      userName = authState.user.name;
-                    }
-
-                    List<ContactModel> contacts = [];
-                    if (expState is ExpenseLoaded) {
-                      contacts = expState.sendAgainContacts;
-                    }
-
-                    return SizedBox(
-                      height: 64,
-                      child: ListView.builder(
-                        scrollDirection: Axis.horizontal,
-                        padding: const EdgeInsets.symmetric(horizontal: 20),
-                        itemCount: contacts.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == 0) {
-                            return _buildSendAgainAvatar(
-                              context,
-                              userAvatar ?? 'assets/images/avatar_clean.png',
-                              userName,
-                            );
-                          }
-                          final contact = contacts[index - 1];
-                          return _buildDynamicContactAvatar(
-                              context, contact, index - 1);
-                        },
-                      ),
-                    );
-                  },
-                );
-              },
-            ),
-
             const SizedBox(
                 height:
                     120), // Bottom padding for navigation bar and center FAB
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildSendAgainAvatar(
-      BuildContext context, String avatarUrl, String name) {
-    final initials = name.trim().isNotEmpty
-        ? name
-            .trim()
-            .split(' ')
-            .map((e) => e.isNotEmpty ? e[0] : '')
-            .take(2)
-            .join()
-            .toUpperCase()
-        : 'U';
-    return GestureDetector(
-      onTap: () => _showQuickTransferDialog(context, name),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: AppColors.primary.withOpacity(0.12),
-            border: Border.all(
-                color: AppColors.primary.withOpacity(0.4), width: 1.5),
-          ),
-          child: Center(
-            child: Text(
-              initials,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: AppColors.primary,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildDynamicContactAvatar(
-      BuildContext context, ContactModel contact, int index) {
-    final pastelColors = [
-      Colors.teal.shade400,
-      Colors.purple.shade300,
-      Colors.blue.shade400,
-      Colors.orange.shade400,
-      Colors.pink.shade300,
-      Colors.indigo.shade300,
-    ];
-    final color = pastelColors[index % pastelColors.length];
-
-    if (contact.avatarUrl != null && contact.avatarUrl!.isNotEmpty) {
-      return GestureDetector(
-        onTap: () => _showQuickTransferDialog(context, contact.name),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 6),
-          child: Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade200, width: 2),
-            ),
-            child: ClipOval(
-              child: MonoAvatarImage(
-                avatarUrl: contact.avatarUrl,
-                width: 52,
-                height: 52,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () => _showQuickTransferDialog(context, contact.name),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 6),
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: color.withOpacity(0.18),
-            border: Border.all(color: color.withOpacity(0.5), width: 1.5),
-          ),
-          child: Center(
-            child: Text(
-              contact.computedInitials,
-              style: GoogleFonts.inter(
-                fontWeight: FontWeight.w700,
-                color: color,
-                fontSize: 16,
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildTransactionTile(BuildContext context, TransactionModel item) {
     IconData iconData = Icons.receipt_long_rounded;
@@ -812,6 +581,8 @@ class HomeScreen extends StatelessWidget {
                 children: [
                   Text(
                     item.title,
+                    maxLines: 2,
+                    softWrap: true,
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,

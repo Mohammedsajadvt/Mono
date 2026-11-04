@@ -111,9 +111,16 @@ class StatisticsScreen extends StatelessWidget {
             }
           }
 
-          return SingleChildScrollView(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 24),
+          return RefreshIndicator(
+            color: AppColors.primary,
+            onRefresh: () async {
+              context.read<ExpenseBloc>().add(LoadExpensesEvent());
+              await Future.delayed(const Duration(milliseconds: 600));
+            },
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -389,7 +396,7 @@ class StatisticsScreen extends StatelessWidget {
                     ...topItems.map((item) {
                       return Padding(
                         padding: const EdgeInsets.only(bottom: 12),
-                        child: _buildTopItemCard(item),
+                        child: _buildTopItemCard(context, item),
                       );
                     }),
 
@@ -397,13 +404,14 @@ class StatisticsScreen extends StatelessWidget {
                 ],
               ),
             ),
-          );
-        },
-      ),
-    );
-  }
+          ),
+        );
+      },
+    ),
+  );
+}
 
-  Widget _buildTopItemCard(TransactionModel item) {
+  Widget _buildTopItemCard(BuildContext context, TransactionModel item) {
     IconData getCategoryIcon(String? iconName) {
       switch (iconName) {
         case 'movie_outlined':
@@ -431,68 +439,248 @@ class StatisticsScreen extends StatelessWidget {
       }
     }
 
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF9FAFB),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFFEEEEEE)),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: item.isIncome
-                  ? const Color(0xFF25A969).withOpacity(0.12)
-                  : const Color(0xFFF95B51).withOpacity(0.12),
-              borderRadius: BorderRadius.circular(12),
+    return InkWell(
+      onTap: () => _confirmDeleteTransaction(context, item),
+      onLongPress: () => _confirmDeleteTransaction(context, item),
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF9FAFB),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: const Color(0xFFEEEEEE)),
+        ),
+        child: Row(
+          children: [
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: item.isIncome
+                    ? const Color(0xFF25A969).withOpacity(0.12)
+                    : const Color(0xFFF95B51).withOpacity(0.12),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                getCategoryIcon(item.iconName),
+                color: item.isIncome
+                    ? const Color(0xFF25A969)
+                    : const Color(0xFFF95B51),
+                size: 22,
+              ),
             ),
-            child: Icon(
-              getCategoryIcon(item.iconName),
-              color: item.isIncome
-                  ? const Color(0xFF25A969)
-                  : const Color(0xFFF95B51),
-              size: 22,
-            ),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF222222),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    maxLines: 2,
+                    softWrap: true,
+                    style: GoogleFonts.inter(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF222222),
+                    ),
                   ),
-                  overflow: TextOverflow.ellipsis,
+                  const SizedBox(height: 3),
+                  Text(
+                    DateFormat('MMM d, yyyy').format(item.date),
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFFAAAAAA),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              item.formattedAmount,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: item.isIncome
+                    ? const Color(0xFF25A969)
+                    : const Color(0xFFF95B51),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteTransaction(BuildContext context, TransactionModel item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFFEBEE),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Color(0xFFE53935), size: 24),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  DateFormat('MMM d, yyyy').format(item.date),
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFFAAAAAA),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Delete Transaction',
+                        style: GoogleFonts.inter(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w700,
+                          color: const Color(0xFF222222),
+                        ),
+                      ),
+                      Text(
+                        'This will permanently remove this record',
+                        style: GoogleFonts.inter(
+                          fontSize: 12,
+                          color: const Color(0xFF888888),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
-          ),
-          Text(
-            item.formattedAmount,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: item.isIncome
-                  ? const Color(0xFF25A969)
-                  : const Color(0xFFF95B51),
+            const SizedBox(height: 18),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFF9FAFB),
+                borderRadius: BorderRadius.circular(14),
+                border: Border.all(color: const Color(0xFFEEEEEE)),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          item.title,
+                          style: GoogleFonts.inter(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF222222),
+                          ),
+                          maxLines: 2,
+                          softWrap: true,
+                        ),
+                        Text(
+                          item.category,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            color: const Color(0xFF888888),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Text(
+                    item.formattedAmount,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: item.isIncome
+                          ? const Color(0xFF25A969)
+                          : const Color(0xFFF95B51),
+                    ),
+                  ),
+                ],
+              ),
             ),
-          ),
-        ],
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                    style: OutlinedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      side: BorderSide(color: Colors.grey.shade300),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF555555),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      context
+                          .read<ExpenseBloc>()
+                          .add(DeleteTransactionEvent(item.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Transaction "${item.title}" deleted'),
+                          backgroundColor: const Color(0xFFE53935),
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFE53935),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

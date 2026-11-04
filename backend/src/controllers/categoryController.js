@@ -47,14 +47,11 @@ const getCategories = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Check if user has categories, seed if 0
-    await seedDefaultCategoriesForUser(userId);
-
-    // Fetch active categories strictly for this user
+    // Fetch categories strictly for this authenticated user
     const [categories] = await pool.execute(
       `SELECT id, user_id, name, icon, color, status, type, created_at 
        FROM categories 
-       WHERE user_id = ? AND status = 'active'
+       WHERE user_id = ?
        ORDER BY name ASC`,
       [userId]
     );
@@ -182,11 +179,15 @@ const deleteCategory = async (req, res) => {
     const userId = req.user.id;
     const categoryId = req.params.id;
 
-    // Strict multi-tenant isolation: Soft delete only for this user
+    // Unlink any transactions using this category first
+    await pool.execute(
+      'UPDATE transactions SET category_id = NULL WHERE category_id = ? AND user_id = ?',
+      [categoryId, userId]
+    );
+
+    // Hard delete category strictly for this user
     const [result] = await pool.execute(
-      `UPDATE categories 
-       SET status = 'inactive' 
-       WHERE id = ? AND user_id = ?`,
+      'DELETE FROM categories WHERE id = ? AND user_id = ?',
       [categoryId, userId]
     );
 
@@ -199,7 +200,7 @@ const deleteCategory = async (req, res) => {
 
     return res.json({
       success: true,
-      message: 'Category set to inactive.',
+      message: 'Category permanently deleted from database.',
     });
   } catch (error) {
     console.error('[CategoryController.deleteCategory] Error:', error);

@@ -1,16 +1,61 @@
 const pool = require('../config/db');
 
+const DEFAULT_CATEGORIES = [
+  // Expense Categories
+  { name: 'Grocery', icon: 'shopping_bag_outlined', color: '#438883', type: 'expense' },
+  { name: 'Entertainment', icon: 'movie_outlined', color: '#FA3E3E', type: 'expense' },
+  { name: 'Shopping', icon: 'shopping_cart_outlined', color: '#FF9800', type: 'expense' },
+  { name: 'Transfer', icon: 'swap_horiz_rounded', color: '#2196F3', type: 'expense' },
+  { name: 'Payment', icon: 'payment_rounded', color: '#9C27B0', type: 'expense' },
+  { name: 'Food & Dining', icon: 'restaurant_rounded', color: '#FF5722', type: 'expense' },
+  { name: 'Transport', icon: 'swap_horiz_rounded', color: '#009688', type: 'expense' },
+  { name: 'Fitness', icon: 'fitness_center_rounded', color: '#4CAF50', type: 'expense' },
+  // Income Categories
+  { name: 'Salary', icon: 'payment_rounded', color: '#25A969', type: 'income' },
+  { name: 'Credits & Bonus', icon: 'payment_rounded', color: '#10B981', type: 'income' },
+  { name: 'Freelance', icon: 'payment_rounded', color: '#059669', type: 'income' },
+  { name: 'Investments', icon: 'bolt_rounded', color: '#34D399', type: 'income' },
+  { name: 'Business', icon: 'payment_rounded', color: '#047857', type: 'income' },
+];
+
+/**
+ * Seed default categories for a specific user if they have none
+ */
+const seedDefaultCategoriesForUser = async (userId) => {
+  try {
+    const [existing] = await pool.execute(
+      'SELECT COUNT(*) as count FROM categories WHERE user_id = ?',
+      [userId]
+    );
+
+    if (existing[0].count === 0) {
+      for (const cat of DEFAULT_CATEGORIES) {
+        await pool.execute(
+          'INSERT INTO categories (user_id, name, icon, color, type, status) VALUES (?, ?, ?, ?, ?, "active")',
+          [userId, cat.name, cat.icon, cat.color, cat.type]
+        );
+      }
+      console.log(`[CategoryController] Successfully seeded default categories for user_id: ${userId}`);
+    }
+  } catch (err) {
+    console.error(`[CategoryController] Error seeding default categories for user_id ${userId}:`, err);
+  }
+};
+
 // GET /api/categories
 const getCategories = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    // Fetch active categories only (user_id IS NULL or user_id = ?)
+    // Check if user has categories, seed if 0
+    await seedDefaultCategoriesForUser(userId);
+
+    // Fetch active categories strictly for this user
     const [categories] = await pool.execute(
       `SELECT id, user_id, name, icon, color, status, type, created_at 
        FROM categories 
-       WHERE (user_id IS NULL OR user_id = ?) AND status = 'active'
-       ORDER BY (user_id IS NOT NULL) ASC, name ASC`,
+       WHERE user_id = ? AND status = 'active'
+       ORDER BY name ASC`,
       [userId]
     );
 
@@ -45,9 +90,9 @@ const createCategory = async (req, res) => {
     const categoryColor = color || '#438883';
     const categoryType = (type === 'income' || type === 'expense') ? type : 'both';
 
-    // Insert new category
+    // Insert new category strictly with user_id
     const [result] = await pool.execute(
-      'INSERT INTO categories (user_id, name, icon, color, type) VALUES (?, ?, ?, ?, ?)',
+      'INSERT INTO categories (user_id, name, icon, color, type, status) VALUES (?, ?, ?, ?, ?, "active")',
       [userId, categoryName, categoryIcon, categoryColor, categoryType]
     );
 
@@ -58,6 +103,7 @@ const createCategory = async (req, res) => {
       icon: categoryIcon,
       color: categoryColor,
       type: categoryType,
+      status: 'active',
     };
 
     return res.status(201).json({
@@ -93,17 +139,18 @@ const updateCategory = async (req, res) => {
     const categoryColor = color || '#438883';
     const categoryType = (type === 'income' || type === 'expense') ? type : 'both';
 
+    // Strict multi-tenant isolation: user_id = ?
     const [result] = await pool.execute(
       `UPDATE categories 
        SET name = ?, icon = ?, color = ?, type = ? 
-       WHERE id = ? AND (user_id = ? OR user_id IS NULL)`,
+       WHERE id = ? AND user_id = ?`,
       [categoryName, categoryIcon, categoryColor, categoryType, categoryId, userId]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found.',
+        message: 'Category not found or unauthorized.',
       });
     }
 
@@ -111,11 +158,13 @@ const updateCategory = async (req, res) => {
       success: true,
       message: 'Category updated successfully.',
       category: {
-        id: categoryId,
+        id: parseInt(categoryId, 10),
+        user_id: userId,
         name: categoryName,
         icon: categoryIcon,
         color: categoryColor,
         type: categoryType,
+        status: 'active',
       },
     });
   } catch (error) {
@@ -133,30 +182,30 @@ const deleteCategory = async (req, res) => {
     const userId = req.user.id;
     const categoryId = req.params.id;
 
-    // Soft delete: set status to 'inactive' so the category is retained in DB but never shown in app
+    // Strict multi-tenant isolation: Soft delete only for this user
     const [result] = await pool.execute(
       `UPDATE categories 
        SET status = 'inactive' 
-       WHERE id = ? AND (user_id = ? OR user_id IS NULL)`,
+       WHERE id = ? AND user_id = ?`,
       [categoryId, userId]
     );
 
     if (result.affectedRows === 0) {
       return res.status(404).json({
         success: false,
-        message: 'Category not found.',
+        message: 'Category not found or unauthorized.',
       });
     }
 
     return res.json({
       success: true,
-      message: 'Category status set to inactive. Hidden from app.',
+      message: 'Category set to inactive.',
     });
   } catch (error) {
     console.error('[CategoryController.deleteCategory] Error:', error);
     return res.status(500).json({
       success: false,
-      message: 'Failed to update category status.',
+      message: 'Failed to delete category.',
     });
   }
 };
@@ -166,4 +215,5 @@ module.exports = {
   createCategory,
   updateCategory,
   deleteCategory,
+  seedDefaultCategoriesForUser,
 };

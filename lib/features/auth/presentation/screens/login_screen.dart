@@ -1,9 +1,12 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/constants/app_typography.dart';
+import 'package:mono_app/core/network/api_client.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
+import 'package:mono_app/core/storage/secure_storage_service.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
 import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
 import 'package:mono_app/features/auth/bloc/auth_event.dart';
@@ -42,6 +45,353 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _passwordController.text,
           ),
         );
+  }
+
+  void _showForgotPasswordSheet(BuildContext context) {
+    final resetEmailCtrl =
+        TextEditingController(text: _emailController.text.trim());
+    final newPassCtrl = TextEditingController();
+    final confirmPassCtrl = TextEditingController();
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+    bool isSubmitting = false;
+    String? errorMessage;
+
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (sheetContext) => StatefulBuilder(
+        builder: (ctx, setSheetState) => Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          child: Container(
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+            ),
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Center(
+                  child: Container(
+                    width: 44,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey.shade300,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Row(
+                  children: [
+                    Container(
+                      width: 42,
+                      height: 42,
+                      decoration: BoxDecoration(
+                        color: AppColors.primary.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.lock_reset_rounded,
+                          color: AppColors.primary, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'Reset Password',
+                            style: GoogleFonts.inter(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF222222),
+                            ),
+                          ),
+                          Text(
+                            'Enter email and create a new password',
+                            style: GoogleFonts.inter(
+                              fontSize: 12,
+                              color: const Color(0xFF666666),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                if (errorMessage != null)
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 10),
+                    margin: const EdgeInsets.only(bottom: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFEF2F2),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: const Color(0xFFFCA5A5)),
+                    ),
+                    child: Text(
+                      errorMessage!,
+                      style: GoogleFonts.inter(
+                        fontSize: 13,
+                        color: const Color(0xFFDC2626),
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                // Email field
+                Text(
+                  'REGISTERED EMAIL',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: resetEmailCtrl,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: InputDecoration(
+                    hintText: 'Enter your registered email',
+                    prefixIcon: const Icon(Icons.email_outlined,
+                        size: 20, color: AppColors.primary),
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // New Password field
+                Text(
+                  'NEW PASSWORD',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: newPassCtrl,
+                  obscureText: obscureNew,
+                  decoration: InputDecoration(
+                    hintText: 'At least 6 characters',
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        size: 20, color: AppColors.primary),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureNew
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () =>
+                          setSheetState(() => obscureNew = !obscureNew),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 14),
+                // Confirm Password field
+                Text(
+                  'CONFIRM NEW PASSWORD',
+                  style: GoogleFonts.inter(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMuted,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                TextField(
+                  controller: confirmPassCtrl,
+                  obscureText: obscureConfirm,
+                  decoration: InputDecoration(
+                    hintText: 'Re-enter new password',
+                    prefixIcon: const Icon(Icons.lock_outline,
+                        size: 20, color: AppColors.primary),
+                    suffixIcon: IconButton(
+                      icon: Icon(
+                        obscureConfirm
+                            ? Icons.visibility_off_outlined
+                            : Icons.visibility_outlined,
+                        size: 20,
+                        color: Colors.grey.shade600,
+                      ),
+                      onPressed: () => setSheetState(
+                          () => obscureConfirm = !obscureConfirm),
+                    ),
+                    filled: true,
+                    fillColor: const Color(0xFFF9FAFB),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 14),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(color: Colors.grey.shade200),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(
+                          color: AppColors.primary, width: 1.5),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 22),
+                SizedBox(
+                  width: double.infinity,
+                  height: 50,
+                  child: ElevatedButton(
+                    onPressed: isSubmitting
+                        ? null
+                        : () async {
+                            final email = resetEmailCtrl.text.trim();
+                            final newPass = newPassCtrl.text.trim();
+                            final confirmPass = confirmPassCtrl.text.trim();
+
+                            if (email.isEmpty || !email.contains('@')) {
+                              setSheetState(() => errorMessage =
+                                  'Please enter a valid email address');
+                              return;
+                            }
+                            if (newPass.length < 6) {
+                              setSheetState(() => errorMessage =
+                                  'Password must be at least 6 characters');
+                              return;
+                            }
+                            if (newPass != confirmPass) {
+                              setSheetState(
+                                  () => errorMessage = 'Passwords do not match');
+                              return;
+                            }
+
+                            setSheetState(() {
+                              isSubmitting = true;
+                              errorMessage = null;
+                            });
+
+                            final messenger = ScaffoldMessenger.of(context);
+
+                            try {
+                              final client = ApiClient(
+                                  secureStorage: SecureStorageService());
+                              final res = await client.dio
+                                  .post('/auth/reset-password', data: {
+                                'email': email,
+                                'newPassword': newPass,
+                              });
+
+                              if (res.statusCode == 200 &&
+                                  res.data['success'] == true) {
+                                if (ctx.mounted && Navigator.of(sheetContext).canPop()) {
+                                  Navigator.of(sheetContext).pop();
+                                }
+                                if (!mounted) return;
+                                _emailController.text = email;
+                                _passwordController.text = newPass;
+
+                                messenger.showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Password reset successfully! Logging you in...'),
+                                    backgroundColor: Color(0xFF16A34A),
+                                    behavior: SnackBarBehavior.floating,
+                                  ),
+                                );
+
+                                // Auto login
+                                _onLoginPressed();
+                              } else {
+                                setSheetState(() {
+                                  isSubmitting = false;
+                                  errorMessage = res.data['message']
+                                          ?.toString() ??
+                                      'Failed to reset password';
+                                });
+                              }
+                            } catch (e) {
+                              String errText =
+                                  'Server error. Please try again.';
+                              if (e is DioException &&
+                                  e.response?.data is Map &&
+                                  e.response?.data['message'] != null) {
+                                errText =
+                                    e.response!.data['message'].toString();
+                              }
+                              setSheetState(() {
+                                isSubmitting = false;
+                                errorMessage = errText;
+                              });
+                            }
+                          },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    child: isSubmitting
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white),
+                          )
+                        : Text(
+                            'Reset Password',
+                            style: GoogleFonts.inter(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color: Colors.white,
+                            ),
+                          ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
   @override
@@ -94,8 +444,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                   if (Navigator.of(context).canPop()) {
                                     Navigator.of(context).pop();
                                   } else {
-                                    Navigator.of(context)
-                                        .pushReplacementNamed(AppRoutes.onboarding);
+                                    Navigator.of(context).pushReplacementNamed(
+                                        AppRoutes.onboarding);
                                   }
                                 },
                                 icon: const Icon(Icons.arrow_back_ios_new,
@@ -139,7 +489,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
               // Form Section
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -159,7 +510,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'Enter Email',
-                        hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
+                        hintStyle:
+                            GoogleFonts.inter(color: Colors.grey.shade400),
                         prefixIcon: const Icon(Icons.email_outlined,
                             color: AppColors.primary),
                         filled: true,
@@ -176,8 +528,8 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide:
-                              const BorderSide(color: AppColors.primary, width: 1.5),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
                         ),
                       ),
                     ),
@@ -200,7 +552,8 @@ class _LoginScreenState extends State<LoginScreen> {
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Enter Password',
-                        hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
+                        hintStyle:
+                            GoogleFonts.inter(color: Colors.grey.shade400),
                         prefixIcon: const Icon(Icons.lock_outline,
                             color: AppColors.primary),
                         suffixIcon: IconButton(
@@ -230,26 +583,19 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(16),
-                          borderSide:
-                              const BorderSide(color: AppColors.primary, width: 1.5),
+                          borderSide: const BorderSide(
+                              color: AppColors.primary, width: 1.5),
                         ),
                       ),
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Forgot Password
+                    // Forgot Password Link
                     Align(
                       alignment: Alignment.centerRight,
                       child: TextButton(
-                        onPressed: () {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text('Password reset link sent to email'),
-                              behavior: SnackBarBehavior.floating,
-                            ),
-                          );
-                        },
+                        onPressed: () => _showForgotPasswordSheet(context),
                         child: Text(
                           'Forgot Password?',
                           style: GoogleFonts.inter(
@@ -299,8 +645,8 @@ class _LoginScreenState extends State<LoginScreen> {
                                       height: 24,
                                       child: CircularProgressIndicator(
                                         strokeWidth: 2.5,
-                                        valueColor:
-                                            AlwaysStoppedAnimation(Colors.white),
+                                        valueColor: AlwaysStoppedAnimation(
+                                            Colors.white),
                                       ),
                                     )
                                   : Text(
@@ -319,7 +665,8 @@ class _LoginScreenState extends State<LoginScreen> {
                     Center(
                       child: GestureDetector(
                         onTap: () {
-                          Navigator.of(context).pushReplacementNamed(AppRoutes.register);
+                          Navigator.of(context)
+                              .pushReplacementNamed(AppRoutes.register);
                         },
                         behavior: HitTestBehavior.opaque,
                         child: RichText(
@@ -348,4 +695,3 @@ class _LoginScreenState extends State<LoginScreen> {
     );
   }
 }
-

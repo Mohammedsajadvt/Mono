@@ -2,6 +2,7 @@ import 'package:equatable/equatable.dart';
 import 'package:mono_app/features/categories/models/category_model.dart';
 import 'package:mono_app/features/expense/models/contact_model.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
+import 'package:mono_app/features/statistics/models/chart_point.dart';
 
 abstract class ExpenseState extends Equatable {
   const ExpenseState();
@@ -22,6 +23,7 @@ class ExpenseLoaded extends ExpenseState {
   final List<CategoryModel> categories;
   final List<ContactModel> sendAgainContacts;
   final List<TransactionModel> topSpendings;
+  final List<ChartPoint> chartPoints;
   final String selectedPeriod;
   final TransactionType selectedStatType;
 
@@ -33,7 +35,8 @@ class ExpenseLoaded extends ExpenseState {
     this.categories = const [],
     this.sendAgainContacts = const [],
     this.topSpendings = const [],
-    this.selectedPeriod = 'Day',
+    this.chartPoints = const [],
+    this.selectedPeriod = 'Month',
     this.selectedStatType = TransactionType.expense,
   });
 
@@ -45,6 +48,7 @@ class ExpenseLoaded extends ExpenseState {
     List<CategoryModel>? categories,
     List<ContactModel>? sendAgainContacts,
     List<TransactionModel>? topSpendings,
+    List<ChartPoint>? chartPoints,
     String? selectedPeriod,
     TransactionType? selectedStatType,
   }) {
@@ -56,6 +60,7 @@ class ExpenseLoaded extends ExpenseState {
       categories: categories ?? this.categories,
       sendAgainContacts: sendAgainContacts ?? this.sendAgainContacts,
       topSpendings: topSpendings ?? this.topSpendings,
+      chartPoints: chartPoints ?? this.chartPoints,
       selectedPeriod: selectedPeriod ?? this.selectedPeriod,
       selectedStatType: selectedStatType ?? this.selectedStatType,
     );
@@ -70,6 +75,7 @@ class ExpenseLoaded extends ExpenseState {
         categories,
         sendAgainContacts,
         topSpendings,
+        chartPoints,
         selectedPeriod,
         selectedStatType,
       ];

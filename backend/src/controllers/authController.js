@@ -1,6 +1,7 @@
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
+const { seedDefaultCategoriesForUser } = require('./categoryController');
 
 // Generate JWT Helper
 const generateToken = (user) => {
@@ -63,6 +64,9 @@ const register = async (req, res) => {
       email: email.toLowerCase().trim(),
       avatar_url: null,
     };
+
+    // Automatically seed user-specific starter categories for this new user
+    await seedDefaultCategoriesForUser(newUser.id);
 
     const token = generateToken(newUser);
 
@@ -199,9 +203,67 @@ const updateProfile = async (req, res) => {
   }
 };
 
+// POST /api/auth/reset-password or /api/auth/forgot-password
+const resetPassword = async (req, res) => {
+  try {
+    const { email, newPassword } = req.body;
+
+    if (!email || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Email and new password are required.',
+      });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 6 characters long.',
+      });
+    }
+
+    const cleanEmail = email.toLowerCase().trim();
+
+    // Check if user exists
+    const [users] = await pool.execute(
+      'SELECT id, name, email FROM users WHERE email = ?',
+      [cleanEmail]
+    );
+
+    if (users.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'No account registered with this email address.',
+      });
+    }
+
+    // Hash new password
+    const salt = await bcrypt.genSalt(10);
+    const passwordHash = await bcrypt.hash(newPassword, salt);
+
+    // Update user password in TiDB database
+    await pool.execute(
+      'UPDATE users SET password_hash = ? WHERE id = ?',
+      [passwordHash, users[0].id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Password reset successfully! You can now log in with your new password.',
+    });
+  } catch (error) {
+    console.error('[AuthController.resetPassword] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Internal server error while resetting password.',
+    });
+  }
+};
+
 module.exports = {
   register,
   login,
   getMe,
   updateProfile,
+  resetPassword,
 };

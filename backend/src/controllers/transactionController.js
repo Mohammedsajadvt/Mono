@@ -71,7 +71,7 @@ const createTransaction = async (req, res) => {
     let resolvedCategoryId = category_id || null;
     if (!resolvedCategoryId && category) {
       const [cats] = await pool.execute(
-        'SELECT id FROM categories WHERE name = ? AND (user_id IS NULL OR user_id = ?) LIMIT 1',
+        'SELECT id FROM categories WHERE name = ? AND user_id = ? LIMIT 1',
         [category, userId]
       );
       if (cats.length > 0) {
@@ -181,64 +181,137 @@ const getDashboard = async (req, res) => {
   }
 };
 
+// Helper: Build continuous time series for statistics
+function buildTimeSeries(period, rawPoints) {
+  const pointsMap = {};
+  rawPoints.forEach(p => {
+    pointsMap[p.label] = parseFloat(p.amount) || 0;
+  });
+
+  const series = [];
+  const now = new Date();
+
+  if (period === 'Day') {
+    // Last 7 days
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - i);
+      const label = d.toLocaleDateString('en-US', { weekday: 'short' });
+      series.push({
+        label,
+        amount: pointsMap[label] || 0.0,
+      });
+    }
+  } else if (period === 'Week') {
+    // Last 4 weeks
+    for (let i = 3; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(now.getDate() - (i * 7));
+      const dCopy = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+      const dayNum = dCopy.getUTCDay() || 7;
+      dCopy.setUTCDate(dCopy.getUTCDate() + 4 - dayNum);
+      const yearStart = new Date(Date.UTC(dCopy.getUTCFullYear(), 0, 1));
+      const weekNo = Math.ceil((((dCopy - yearStart) / 86400000) + 1) / 7);
+      const label = `W${weekNo}`;
+      series.push({
+        label,
+        amount: pointsMap[label] || 0.0,
+      });
+    }
+  } else if (period === 'Year') {
+    // Last 5 years
+    const currentYear = now.getFullYear();
+    for (let y = currentYear - 4; y <= currentYear; y++) {
+      const label = `${y}`;
+      series.push({
+        label,
+        amount: pointsMap[label] || 0.0,
+      });
+    }
+  } else {
+    // Month (default): Last 7 months
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const label = d.toLocaleDateString('en-US', { month: 'short' });
+      series.push({
+        label,
+        amount: pointsMap[label] || 0.0,
+      });
+    }
+  }
+
+  return series;
+}
+
 // GET /api/transactions/statistics
 const getStatistics = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { period, type } = req.query; // period: Day, Week, Month, Year; type: expense, income
+    const { period = 'Month', type } = req.query; // period: Day, Week, Month, Year; type: expense, income
 
     const statType = (type && type.toLowerCase() === 'income') ? 'income' : 'expense';
 
-    // Top spendings for this period
+    // Top spendings/earnings for this period
+    let dateFilter = '';
+    if (period === 'Day') {
+      dateFilter = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)';
+    } else if (period === 'Week') {
+      dateFilter = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)';
+    } else if (period === 'Month') {
+      dateFilter = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)';
+    } else if (period === 'Year') {
+      dateFilter = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 5 YEAR)';
+    }
+
     const [topSpendings] = await pool.execute(
       `SELECT t.id, t.title, t.amount, 
               DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
               c.name as category_name, c.icon as category_icon, c.color as category_color
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
-       WHERE t.user_id = ? AND t.type = ? AND (t.status = 'active' OR t.status IS NULL)
+       WHERE t.user_id = ? AND t.type = ? AND (t.status = 'active' OR t.status IS NULL) ${dateFilter}
        ORDER BY t.amount DESC
        LIMIT 5`,
       [userId, statType]
     );
 
     // Dynamically calculate chart curve from user's actual MySQL transactions
-    let chartPoints = [];
+    let rawPoints = [];
     if (period === 'Day') {
       const [points] = await pool.execute(
         `SELECT DATE_FORMAT(transaction_date, '%a') as label, COALESCE(SUM(amount), 0) as amount
          FROM transactions 
          WHERE user_id = ? AND type = ? AND (status = 'active' OR status IS NULL)
            AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 6 DAY)
-         GROUP BY transaction_date
+         GROUP BY DATE_FORMAT(transaction_date, '%a'), transaction_date
          ORDER BY transaction_date ASC`,
         [userId, statType]
       );
-      chartPoints = points.map(p => ({ label: p.label, amount: parseFloat(p.amount) }));
+      rawPoints = points;
     } else if (period === 'Week') {
       const [points] = await pool.execute(
         `SELECT CONCAT('W', WEEK(transaction_date)) as label, COALESCE(SUM(amount), 0) as amount
          FROM transactions 
          WHERE user_id = ? AND type = ? AND (status = 'active' OR status IS NULL)
            AND transaction_date >= DATE_SUB(CURDATE(), INTERVAL 28 DAY)
-         GROUP BY WEEK(transaction_date)
+         GROUP BY CONCAT('W', WEEK(transaction_date))
          ORDER BY MIN(transaction_date) ASC`,
         [userId, statType]
       );
-      chartPoints = points.map(p => ({ label: p.label, amount: parseFloat(p.amount) }));
+      rawPoints = points;
     } else if (period === 'Year') {
       const [points] = await pool.execute(
         `SELECT DATE_FORMAT(transaction_date, '%Y') as label, COALESCE(SUM(amount), 0) as amount
          FROM transactions 
          WHERE user_id = ? AND type = ? AND (status = 'active' OR status IS NULL)
-         GROUP BY YEAR(transaction_date), DATE_FORMAT(transaction_date, '%Y')
+         GROUP BY DATE_FORMAT(transaction_date, '%Y')
          ORDER BY MIN(transaction_date) ASC
          LIMIT 5`,
         [userId, statType]
       );
-      chartPoints = points.map(p => ({ label: p.label, amount: parseFloat(p.amount) }));
+      rawPoints = points;
     } else {
-      // Month (default): Group by Month over the last 6 months
+      // Month (default): Group by Month over the last 7 months
       const [points] = await pool.execute(
         `SELECT DATE_FORMAT(transaction_date, '%b') as label, COALESCE(SUM(amount), 0) as amount
          FROM transactions 
@@ -248,13 +321,10 @@ const getStatistics = async (req, res) => {
          ORDER BY MIN(transaction_date) ASC`,
         [userId, statType]
       );
-      chartPoints = points.map(p => ({ label: p.label, amount: parseFloat(p.amount) }));
+      rawPoints = points;
     }
 
-    if (chartPoints.length === 0) {
-      // Clean fallback showing 0 activity when user has no transactions yet
-      chartPoints = [{ label: 'Current', amount: 0.0 }];
-    }
+    const chartPoints = buildTimeSeries(period, rawPoints);
 
     return res.json({
       success: true,

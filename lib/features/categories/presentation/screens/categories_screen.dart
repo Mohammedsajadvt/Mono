@@ -179,6 +179,18 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20),
               child: BlocBuilder<ExpenseBloc, ExpenseState>(
                 builder: (context, state) {
+                  if (state is ExpenseLoading) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 48),
+                      child: Center(
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.5,
+                          color: AppColors.primary,
+                        ),
+                      ),
+                    );
+                  }
+
                   List<CategoryModel> categories = [];
                   if (state is ExpenseLoaded) {
                     categories = state.categories;

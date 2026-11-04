@@ -1,9 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/constants/app_typography.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
+import 'package:mono_app/core/storage/secure_storage_service.dart';
+import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
+import 'package:mono_app/features/auth/bloc/auth_state.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -17,7 +21,8 @@ class _SplashScreenState extends State<SplashScreen>
   late final AnimationController _controller;
   late final Animation<double> _fadeAnimation;
   late final Animation<double> _scaleAnimation;
-  Timer? _navigationTimer;
+  bool _hasNavigated = false;
+  Timer? _fallbackTimer;
 
   @override
   void initState() {
@@ -42,21 +47,42 @@ class _SplashScreenState extends State<SplashScreen>
 
     _controller.forward();
 
-    // Auto-advance to Onboarding after 2.5s
-    _navigationTimer = Timer(const Duration(milliseconds: 2500), () {
-      _navigateToOnboarding();
-    });
+    // Check token and decide destination after minimum 1800ms branding
+    _determineNextScreen();
   }
 
-  void _navigateToOnboarding() {
-    if (!mounted) return;
-    _navigationTimer?.cancel();
-    Navigator.of(context).pushReplacementNamed(AppRoutes.onboarding);
+  Future<void> _determineNextScreen() async {
+    await Future.delayed(const Duration(milliseconds: 1800));
+    if (!mounted || _hasNavigated) return;
+
+    final authState = context.read<AuthBloc>().state;
+    if (authState is Authenticated) {
+      _navigate(AppRoutes.mainNav);
+      return;
+    }
+
+    // Safety check directly against secure local storage
+    final storage = SecureStorageService();
+    final token = await storage.getAccessToken();
+
+    if (token != null && token.isNotEmpty) {
+      _navigate(AppRoutes.mainNav);
+      return;
+    }
+
+    _navigate(AppRoutes.onboarding);
+  }
+
+  void _navigate(String routeName) {
+    if (_hasNavigated || !mounted) return;
+    _hasNavigated = true;
+    _fallbackTimer?.cancel();
+    Navigator.of(context).pushReplacementNamed(routeName);
   }
 
   @override
   void dispose() {
-    _navigationTimer?.cancel();
+    _fallbackTimer?.cancel();
     _controller.dispose();
     super.dispose();
   }
@@ -73,11 +99,17 @@ class _SplashScreenState extends State<SplashScreen>
       ),
     );
 
-    return Scaffold(
-      body: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: _navigateToOnboarding,
-        child: Container(
+    return BlocListener<AuthBloc, AuthState>(
+      listener: (context, state) {
+        if (_hasNavigated) return;
+        if (state is Authenticated) {
+          _navigate(AppRoutes.mainNav);
+        } else if (state is Unauthenticated) {
+          _navigate(AppRoutes.onboarding);
+        }
+      },
+      child: Scaffold(
+        body: Container(
           width: double.infinity,
           height: double.infinity,
           decoration: const BoxDecoration(
@@ -100,4 +132,3 @@ class _SplashScreenState extends State<SplashScreen>
     );
   }
 }
-

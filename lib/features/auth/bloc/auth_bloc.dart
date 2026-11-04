@@ -28,25 +28,60 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     Emitter<AuthState> emit,
   ) async {
     final token = await secureStorage.getAccessToken();
-    final cachedAvatar = await secureStorage.getUserAvatar();
+    final cachedUser = await secureStorage.getCachedUser();
 
     if (token != null && token.isNotEmpty) {
+      // If we have cached user, immediately emit Authenticated so splash doesn't block
+      if (cachedUser != null) {
+        emit(Authenticated(cachedUser));
+      }
+
       try {
         final response = await _client.dio.get('/auth/me');
         if (response.statusCode == 200 && response.data['user'] != null) {
           final u = response.data['user'];
-          emit(Authenticated(UserModel(
+          final freshUser = UserModel(
             id: u['id'].toString(),
-            name: u['name'] ?? 'User',
-            email: u['email'] ?? '',
+            name: u['name'] ?? cachedUser?.name ?? 'User',
+            email: u['email'] ?? cachedUser?.email ?? '',
             username:
-                '@${(u['name'] ?? 'user').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
-            avatarUrl: cachedAvatar ?? u['avatar_url'] ?? 'assets/images/avatar_clean.png',
-          )));
+                '@${(u['name'] ?? cachedUser?.name ?? 'user').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+            avatarUrl: cachedUser?.avatarUrl ??
+                u['avatar_url'] ??
+                'assets/images/avatar_clean.png',
+          );
+          await secureStorage.saveUserData(
+            id: freshUser.id,
+            name: freshUser.name,
+            email: freshUser.email,
+            avatarUrl: freshUser.avatarUrl,
+          );
+          emit(Authenticated(freshUser));
+          return;
+        }
+      } on DioException catch (dioErr) {
+        // Only invalidate session if server explicitly returned 401 Unauthorized
+        if (dioErr.response?.statusCode == 401) {
+          await secureStorage.clearAll();
+          emit(Unauthenticated());
+          return;
+        }
+        // If network issue or server cold-starting, stay authenticated with cached session!
+        if (cachedUser != null) {
+          emit(Authenticated(cachedUser));
           return;
         }
       } catch (_) {
-        // Token expired or invalid
+        if (cachedUser != null) {
+          emit(Authenticated(cachedUser));
+          return;
+        }
+      }
+
+      // If token exists and no 401 was returned, stay authenticated
+      if (cachedUser != null) {
+        emit(Authenticated(cachedUser));
+        return;
       }
     }
 
@@ -85,7 +120,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           accessToken: token,
           refreshToken: token,
         );
-        await secureStorage.saveUserId(userData['id'].toString());
+        await secureStorage.saveUserData(
+          id: userData['id'].toString(),
+          name: userData['name'] ?? 'User',
+          email: userData['email'] ?? event.email.trim(),
+          avatarUrl: cachedAvatar ?? userData['avatar_url'],
+        );
 
         final user = UserModel(
           id: userData['id'].toString(),
@@ -93,13 +133,16 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           email: userData['email'] ?? event.email.trim(),
           username:
               '@${(userData['name'] ?? 'user').toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
-          avatarUrl: cachedAvatar ?? userData['avatar_url'] ?? 'assets/images/avatar_clean.png',
+          avatarUrl: cachedAvatar ??
+              userData['avatar_url'] ??
+              'assets/images/avatar_clean.png',
         );
 
         emit(Authenticated(user));
         return;
       } else {
-        emit(AuthFailure(response.data['message']?.toString() ?? 'Login failed'));
+        emit(AuthFailure(
+            response.data['message']?.toString() ?? 'Login failed'));
       }
     } catch (e) {
       if (e is DioException &&
@@ -108,7 +151,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           e.response?.data['message'] != null) {
         emit(AuthFailure(e.response!.data['message'].toString()));
       } else {
-        emit(const AuthFailure('Unable to connect to server. Please try again.'));
+        emit(const AuthFailure(
+            'Unable to connect to server. Please try again.'));
       }
     }
   }
@@ -151,7 +195,12 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           accessToken: token,
           refreshToken: token,
         );
-        await secureStorage.saveUserId(userData['id'].toString());
+        await secureStorage.saveUserData(
+          id: userData['id'].toString(),
+          name: userData['name'] ?? event.name.trim(),
+          email: userData['email'] ?? event.email.trim(),
+          avatarUrl: cachedAvatar,
+        );
 
         final user = UserModel(
           id: userData['id'].toString(),
@@ -165,7 +214,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
         emit(Authenticated(user));
         return;
       } else {
-        emit(AuthFailure(response.data['message']?.toString() ?? 'Sign up failed'));
+        emit(AuthFailure(
+            response.data['message']?.toString() ?? 'Sign up failed'));
       }
     } catch (e) {
       if (e is DioException &&
@@ -174,7 +224,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           e.response?.data['message'] != null) {
         emit(AuthFailure(e.response!.data['message'].toString()));
       } else {
-        emit(const AuthFailure('Registration failed. Please check details and try again.'));
+        emit(const AuthFailure(
+            'Registration failed. Please check details and try again.'));
       }
     }
   }
@@ -186,7 +237,8 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     await secureStorage.saveUserAvatar(event.avatarUrl);
 
     if (state is Authenticated) {
-      final updatedUser = (state as Authenticated).user.copyWith(avatarUrl: event.avatarUrl);
+      final updatedUser =
+          (state as Authenticated).user.copyWith(avatarUrl: event.avatarUrl);
       emit(Authenticated(updatedUser));
 
       try {

@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -8,10 +9,31 @@ import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
+import 'package:mono_app/features/statistics/models/chart_point.dart';
 import 'package:mono_app/features/statistics/presentation/widgets/export_statement_sheet.dart';
 
 class StatisticsScreen extends StatelessWidget {
   const StatisticsScreen({super.key});
+
+  List<String> _getDefaultLabels(String period) {
+    final now = DateTime.now();
+    if (period == 'Day') {
+      return List.generate(7, (i) {
+        final d = now.subtract(Duration(days: 6 - i));
+        return DateFormat('E').format(d);
+      });
+    } else if (period == 'Week') {
+      return ['W1', 'W2', 'W3', 'W4'];
+    } else if (period == 'Year') {
+      return List.generate(5, (i) => '${now.year - 4 + i}');
+    } else {
+      // Month
+      return List.generate(7, (i) {
+        final d = DateTime(now.year, now.month - 6 + i, 1);
+        return DateFormat('MMM').format(d);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,18 +81,35 @@ class StatisticsScreen extends StatelessWidget {
       ),
       body: BlocBuilder<ExpenseBloc, ExpenseState>(
         builder: (context, state) {
-          String currentPeriod = 'Day';
+          String currentPeriod = 'Month';
           TransactionType currentType = TransactionType.expense;
           List<TransactionModel> topItems = [];
+          List<ChartPoint> chartPoints = [];
 
           if (state is ExpenseLoaded) {
             currentPeriod = state.selectedPeriod;
             currentType = state.selectedStatType;
             topItems = state.topSpendings;
+            chartPoints = state.chartPoints;
           }
 
           final periods = ['Day', 'Week', 'Month', 'Year'];
           final isExpense = currentType == TransactionType.expense;
+
+          // Compute labels for bottom X-axis
+          final displayLabels = chartPoints.isNotEmpty
+              ? chartPoints.map((p) => p.label).toList()
+              : _getDefaultLabels(currentPeriod);
+
+          // Find peak index in chartPoints
+          int peakIndex = -1;
+          double maxVal = 0.0;
+          for (int i = 0; i < chartPoints.length; i++) {
+            if (chartPoints[i].amount > maxVal) {
+              maxVal = chartPoints[i].amount;
+              peakIndex = i;
+            }
+          }
 
           return SingleChildScrollView(
             child: Padding(
@@ -183,29 +222,34 @@ class StatisticsScreen extends StatelessWidget {
 
                   const SizedBox(height: 16),
 
-                  // Interactive Spline Chart
+                  // Interactive Dynamic Spline Chart
                   SizedBox(
                     height: 190,
                     width: double.infinity,
                     child: CustomPaint(
                       painter: _StatisticsChartPainter(
                         isIncome: !isExpense,
+                        chartPoints: chartPoints,
                       ),
                     ),
                   ),
 
-                  // Month / Timeline Labels
+                  // Dynamic Timeline Labels
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: ['Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep']
-                        .map((m) {
-                      final isMay = m == 'May';
+                    children: displayLabels.asMap().entries.map((entry) {
+                      final idx = entry.key;
+                      final label = entry.value;
+                      final isHighlight = peakIndex >= 0
+                          ? idx == peakIndex
+                          : (idx == displayLabels.length - 1);
                       return Text(
-                        m,
+                        label,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight: isMay ? FontWeight.w700 : FontWeight.w500,
-                          color: isMay
+                          fontSize: 12,
+                          fontWeight:
+                              isHighlight ? FontWeight.w700 : FontWeight.w500,
+                          color: isHighlight
                               ? AppColors.primary
                               : const Color(0xFFAAAAAA),
                         ),
@@ -304,54 +348,52 @@ class StatisticsScreen extends StatelessWidget {
                           color: const Color(0xFF222222),
                         ),
                       ),
-                      const SizedBox(width: 40),
+                      IconButton(
+                        icon: const Icon(Icons.swap_vert,
+                            color: Color(0xFF666666)),
+                        onPressed: () {},
+                      ),
                     ],
                   ),
 
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 12),
 
-                  // Dynamic Transaction List from MySQL API
+                  // List of Top Spendings or Earnings
                   if (topItems.isEmpty)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 24),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(24),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF9FAFB),
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          children: [
-                            Icon(Icons.bar_chart_rounded,
-                                size: 36, color: Colors.grey.shade400),
-                            const SizedBox(height: 8),
-                            Text(
-                              'No ${isExpense ? 'spending' : 'earnings'} recorded for this period',
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
-                                fontWeight: FontWeight.w600,
-                                color: const Color(0xFF444444),
-                              ),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(28),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFAFAFA),
+                        borderRadius: BorderRadius.circular(16),
+                      ),
+                      child: Column(
+                        children: [
+                          Icon(Icons.bar_chart_rounded,
+                              size: 36, color: Colors.grey.shade400),
+                          const SizedBox(height: 10),
+                          Text(
+                            isExpense
+                                ? 'No spending recorded for this period'
+                                : 'No earnings recorded for this period',
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF666666),
                             ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     )
                   else
-                    ...topItems.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final item = entry.value;
-                      final isHighlighted = index == 0;
-                      return _buildDynamicSpendingTile(
-                        item: item,
-                        isHighlighted: isHighlighted,
+                    ...topItems.map((item) {
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: _buildTopItemCard(item),
                       );
                     }),
 
-                  const SizedBox(
-                      height: 90), // Bottom padding for navigation bar
+                  const SizedBox(height: 32),
                 ],
               ),
             ),
@@ -361,125 +403,40 @@ class StatisticsScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildDynamicSpendingTile({
-    required TransactionModel item,
-    required bool isHighlighted,
-  }) {
-    IconData icon = Icons.receipt_long_rounded;
-    Color iconBg = const Color(0xFFF4F6F6);
-    Color iconColor = AppColors.primary;
-
-    final tLower = item.title.toLowerCase();
-    final cLower = item.category.toLowerCase();
-
-    if (tLower.contains('starbucks') ||
-        cLower.contains('coffee') ||
-        cLower.contains('food')) {
-      icon = Icons.coffee_rounded;
-      iconBg = const Color(0xFFE8F5E9);
-      iconColor = const Color(0xFF00704A);
-    } else if (tLower.contains('transfer') || cLower.contains('transfer')) {
-      icon = Icons.swap_horiz_rounded;
-      iconBg = const Color(0xFFEDE7F6);
-      iconColor = const Color(0xFF5E35B1);
-    } else if (tLower.contains('youtube') ||
-        cLower.contains('movie') ||
-        cLower.contains('entertain')) {
-      icon = Icons.play_circle_fill_rounded;
-      iconBg = const Color(0xFFFFEBEE);
-      iconColor = const Color(0xFFC62828);
-    } else if (tLower.contains('upwork') ||
-        cLower.contains('freelance') ||
-        cLower.contains('work')) {
-      icon = Icons.work_outline_rounded;
-      iconBg = const Color(0xFFE8F5E9);
-      iconColor = const Color(0xFF2E7D32);
-    } else if (tLower.contains('paypal') || cLower.contains('payment')) {
-      icon = Icons.payment_rounded;
-      iconBg = const Color(0xFFE3F2FD);
-      iconColor = const Color(0xFF1565C0);
-    } else if (cLower.contains('grocer') || cLower.contains('shopping')) {
-      icon = Icons.shopping_bag_outlined;
-      iconBg = const Color(0xFFFFF3E0);
-      iconColor = const Color(0xFFE65100);
-    } else if (cLower.contains('music') || tLower.contains('spotify')) {
-      icon = Icons.music_note_rounded;
-      iconBg = const Color(0xFFE8F5E9);
-      iconColor = const Color(0xFF1DB954);
-    }
-
-    final formattedDate = DateFormat('MMM d, yyyy').format(item.date);
-
-    if (isHighlighted) {
-      return Container(
-        margin: const EdgeInsets.symmetric(vertical: 8),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-          color: AppColors.primary,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.primary.withOpacity(0.35),
-              blurRadius: 16,
-              offset: const Offset(0, 8),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Icon(icon, color: Colors.white, size: 24),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    item.title,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.white,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    formattedDate,
-                    style: GoogleFonts.inter(
-                      fontSize: 12,
-                      color: Colors.white.withOpacity(0.8),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Text(
-              item.formattedAmount,
-              style: GoogleFonts.inter(
-                fontSize: 16,
-                fontWeight: FontWeight.w700,
-                color: Colors.white,
-              ),
-            ),
-          ],
-        ),
-      );
+  Widget _buildTopItemCard(TransactionModel item) {
+    IconData getCategoryIcon(String? iconName) {
+      switch (iconName) {
+        case 'movie_outlined':
+          return Icons.movie_outlined;
+        case 'coffee_rounded':
+          return Icons.coffee_rounded;
+        case 'shopping_bag_outlined':
+          return Icons.shopping_bag_outlined;
+        case 'swap_horiz_rounded':
+          return Icons.swap_horiz_rounded;
+        case 'payment_rounded':
+          return Icons.payment_rounded;
+        case 'play_circle_fill':
+          return Icons.play_circle_fill;
+        case 'music_note_rounded':
+          return Icons.music_note_rounded;
+        case 'bolt_rounded':
+          return Icons.bolt_rounded;
+        case 'fitness_center_rounded':
+          return Icons.fitness_center_rounded;
+        case 'restaurant_rounded':
+          return Icons.restaurant_rounded;
+        default:
+          return Icons.category_rounded;
+      }
     }
 
     return Container(
-      margin: const EdgeInsets.symmetric(vertical: 6),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFFFDFDFD),
+        color: const Color(0xFFF9FAFB),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.grey.shade100),
+        border: Border.all(color: const Color(0xFFEEEEEE)),
       ),
       child: Row(
         children: [
@@ -487,10 +444,18 @@ class StatisticsScreen extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: iconBg,
+              color: item.isIncome
+                  ? const Color(0xFF25A969).withOpacity(0.12)
+                  : const Color(0xFFF95B51).withOpacity(0.12),
               borderRadius: BorderRadius.circular(12),
             ),
-            child: Icon(icon, color: iconColor, size: 24),
+            child: Icon(
+              getCategoryIcon(item.iconName),
+              color: item.isIncome
+                  ? const Color(0xFF25A969)
+                  : const Color(0xFFF95B51),
+              size: 22,
+            ),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -500,17 +465,18 @@ class StatisticsScreen extends StatelessWidget {
                 Text(
                   item.title,
                   style: GoogleFonts.inter(
-                    fontSize: 16,
+                    fontSize: 15,
                     fontWeight: FontWeight.w600,
                     color: const Color(0xFF222222),
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 3),
                 Text(
-                  formattedDate,
+                  DateFormat('MMM d, yyyy').format(item.date),
                   style: GoogleFonts.inter(
                     fontSize: 12,
-                    color: const Color(0xFF888888),
+                    color: const Color(0xFFAAAAAA),
                   ),
                 ),
               ],
@@ -534,23 +500,136 @@ class StatisticsScreen extends StatelessWidget {
 
 class _StatisticsChartPainter extends CustomPainter {
   final bool isIncome;
+  final List<ChartPoint> chartPoints;
 
-  _StatisticsChartPainter({this.isIncome = false});
+  _StatisticsChartPainter({
+    this.isIncome = false,
+    this.chartPoints = const [],
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final w = size.width;
     final h = size.height;
+    final primaryCol =
+        isIncome ? const Color(0xFF25A969) : const Color(0xFF438883);
 
-    final points = [
-      Offset(w * 0.04, h * 0.8),
-      Offset(w * 0.18, h * 0.65),
-      Offset(w * 0.38, h * 0.58),
-      Offset(w * 0.58, h * 0.38),
-      Offset(w * 0.78, h * 0.65),
-      Offset(w * 0.96, h * 0.55),
-    ];
+    // Filter points that have non-zero amounts
+    final hasActivity = chartPoints.any((p) => p.amount > 0);
 
+    if (!hasActivity || chartPoints.isEmpty) {
+      // Clean zero baseline when no activity is recorded
+      final baseY = h * 0.80;
+      final basePaint = Paint()
+        ..color = primaryCol.withOpacity(0.25)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5;
+
+      // Draw subtle dashed zero baseline
+      double startX = 16.0;
+      while (startX < w - 16.0) {
+        canvas.drawLine(
+          Offset(startX, baseY),
+          Offset(math.min(startX + 6, w - 16.0), baseY),
+          basePaint,
+        );
+        startX += 10.0;
+      }
+
+      // Draw light gradient under baseline
+      final zeroFill = Path()
+        ..moveTo(16, baseY)
+        ..lineTo(w - 16, baseY)
+        ..lineTo(w - 16, h)
+        ..lineTo(16, h)
+        ..close();
+
+      final fillPaint = Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            primaryCol.withOpacity(0.06),
+            primaryCol.withOpacity(0.00),
+          ],
+        ).createShader(Rect.fromLTWH(0, 0, w, h));
+      canvas.drawPath(zeroFill, fillPaint);
+
+      // Badge in center showing ₹0.00
+      final badgeCenter = Offset(w / 2, baseY - 36);
+      const badgeW = 76.0;
+      const badgeH = 28.0;
+      final badgeRect = RRect.fromRectAndRadius(
+        Rect.fromCenter(center: badgeCenter, width: badgeW, height: badgeH),
+        const Radius.circular(8),
+      );
+
+      final badgeBg = Paint()
+        ..color = Colors.white
+        ..style = PaintingStyle.fill;
+      final badgeBorder = Paint()
+        ..color = primaryCol.withOpacity(0.3)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.0;
+
+      canvas.drawRRect(badgeRect, badgeBg);
+      canvas.drawRRect(badgeRect, badgeBorder);
+
+      final textSpan = TextSpan(
+        text: '₹0.00',
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w700,
+          color: primaryCol,
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textDirection: TextDirection.ltr,
+      )..layout();
+
+      textPainter.paint(
+        canvas,
+        Offset(
+          badgeCenter.dx - textPainter.width / 2,
+          badgeCenter.dy - textPainter.height / 2,
+        ),
+      );
+      return;
+    }
+
+    // Dynamic curve rendering based on user's real transactions
+    final n = chartPoints.length;
+    final double maxAmt =
+        chartPoints.map((p) => p.amount).reduce(math.max);
+    final double effectiveMax = maxAmt > 0 ? maxAmt : 1.0;
+
+    const double padX = 20.0;
+    final double availableW = w - (2 * padX);
+    final List<Offset> points = [];
+
+    int peakIndex = 0;
+    double highestAmount = 0.0;
+
+    for (int i = 0; i < n; i++) {
+      final amt = chartPoints[i].amount;
+      if (amt >= highestAmount) {
+        highestAmount = amt;
+        peakIndex = i;
+      }
+      final double x = padX + (i / (n > 1 ? (n - 1) : 1)) * availableW;
+      final double normalized = (amt / effectiveMax);
+      // Normalized Y: 0 -> h * 0.82; max -> h * 0.28
+      final double y = (h * 0.82) - (normalized * (h * 0.54));
+      points.add(Offset(x, y));
+    }
+
+    if (points.length == 1) {
+      points.insert(0, Offset(padX, h * 0.82));
+      points.add(Offset(w - padX, h * 0.82));
+    }
+
+    // Build cubic spline
     final path = Path()..moveTo(points[0].dx, points[0].dy);
     for (int i = 0; i < points.length - 1; i++) {
       final p0 = points[i];
@@ -559,13 +638,11 @@ class _StatisticsChartPainter extends CustomPainter {
       path.cubicTo(cx, p0.dy, cx, p1.dy, p1.dx, p1.dy);
     }
 
+    // Fill area below curve
     final fillPath = Path.from(path)
       ..lineTo(points.last.dx, h)
       ..lineTo(points.first.dx, h)
       ..close();
-
-    final primaryCol =
-        isIncome ? const Color(0xFF25A969) : const Color(0xFF438883);
 
     final fillPaint = Paint()
       ..shader = LinearGradient(
@@ -579,45 +656,78 @@ class _StatisticsChartPainter extends CustomPainter {
 
     canvas.drawPath(fillPath, fillPaint);
 
+    // Stroke curve
     final strokePaint = Paint()
       ..color = primaryCol
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 2.4
+      ..strokeWidth = 2.6
       ..strokeCap = StrokeCap.round;
 
     canvas.drawPath(path, strokePaint);
 
-    final highlightPoint = points[2];
+    // Highlight peak point
+    final peakPoint = points[peakIndex];
+
+    // Vertical dashed drop line
     final dashPaint = Paint()
       ..color = primaryCol.withOpacity(0.4)
       ..style = PaintingStyle.stroke
       ..strokeWidth = 1.2;
 
-    double startY = highlightPoint.dy;
-    while (startY < h) {
+    double startY = peakPoint.dy;
+    while (startY < h * 0.82) {
       canvas.drawLine(
-        Offset(highlightPoint.dx, startY),
-        Offset(highlightPoint.dx, (startY + 4).clamp(0, h)),
+        Offset(peakPoint.dx, startY),
+        Offset(peakPoint.dx, math.min(startY + 4, h * 0.82)),
         dashPaint,
       );
       startY += 8;
     }
 
+    // Glow Circles
     final outerCircle = Paint()
       ..color = primaryCol.withOpacity(0.3)
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(highlightPoint, 10, outerCircle);
+    canvas.drawCircle(peakPoint, 10, outerCircle);
 
     final innerCircle = Paint()
       ..color = primaryCol
       ..style = PaintingStyle.fill;
-    canvas.drawCircle(highlightPoint, 5, innerCircle);
+    canvas.drawCircle(peakPoint, 5, innerCircle);
 
-    const badgeWidth = 64.0;
+    // Floating Dynamic Badge
+    final formattedPeak = highestAmount >= 1000
+        ? NumberFormat.currency(
+            symbol: isIncome ? '+₹' : '₹',
+            decimalDigits: highestAmount % 1 == 0 ? 0 : 2,
+            locale: 'en_IN',
+          ).format(highestAmount)
+        : (isIncome
+            ? '+₹${highestAmount.toStringAsFixed(highestAmount % 1 == 0 ? 0 : 2)}'
+            : '₹${highestAmount.toStringAsFixed(highestAmount % 1 == 0 ? 0 : 2)}');
+
+    final textSpan = TextSpan(
+      text: formattedPeak,
+      style: GoogleFonts.inter(
+        fontSize: 12,
+        fontWeight: FontWeight.w700,
+        color: primaryCol,
+      ),
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+    )..layout();
+
+    final badgeWidth = math.max(64.0, textPainter.width + 16.0);
     const badgeHeight = 30.0;
+    final badgeCenterX =
+        peakPoint.dx.clamp(badgeWidth / 2 + 8, w - badgeWidth / 2 - 8);
+    final badgeCenterY = math.max(20.0, peakPoint.dy - 28);
+
     final badgeRect = RRect.fromRectAndRadius(
       Rect.fromCenter(
-        center: Offset(highlightPoint.dx - 12, highlightPoint.dy - 32),
+        center: Offset(badgeCenterX, badgeCenterY),
         width: badgeWidth,
         height: badgeHeight,
       ),
@@ -635,24 +745,11 @@ class _StatisticsChartPainter extends CustomPainter {
     canvas.drawRRect(badgeRect, badgePaint);
     canvas.drawRRect(badgeRect, badgeBorder);
 
-    final textSpan = TextSpan(
-      text: isIncome ? '+₹1,406' : '₹1,230',
-      style: GoogleFonts.inter(
-        fontSize: 12,
-        fontWeight: FontWeight.w700,
-        color: primaryCol,
-      ),
-    );
-    final textPainter = TextPainter(
-      text: textSpan,
-      textDirection: TextDirection.ltr,
-    )..layout();
-
     textPainter.paint(
       canvas,
       Offset(
-        highlightPoint.dx - 12 - textPainter.width / 2,
-        highlightPoint.dy - 32 - textPainter.height / 2,
+        badgeCenterX - textPainter.width / 2,
+        badgeCenterY - textPainter.height / 2,
       ),
     );
   }

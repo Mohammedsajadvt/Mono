@@ -20,13 +20,14 @@ function getMonthProgress() {
 exports.handleChat = async (req, res) => {
   try {
     const userId = req.user.id;
+    const userName = req.user.name || 'there';
     const { query } = req.body;
 
     if (!query) {
       return res.status(400).json({ success: false, message: 'Query is required.' });
     }
 
-    // Fetch user's real transactions
+    // Fetch user's real transactions strictly by user_id
     const [transactions] = await pool.query(
       `SELECT t.*, c.name as category_name 
        FROM transactions t 
@@ -94,22 +95,27 @@ exports.handleChat = async (req, res) => {
     let reply = '';
     let category = 'general';
 
-    if (q.includes('where') && (q.includes('money') || q.includes('go') || q.includes('spend'))) {
+    // If user has zero transactions, give clear guidance
+    if (transactions.length === 0) {
+      reply = `👋 Hi **${userName}**! Your **Mono AI Assistant** is live and connected to your account.\n\n` +
+        `You currently have **0 transactions** recorded in your database. Tap the **'+' button** at the bottom to record your first income or expense!\n\n` +
+        `Once you add transactions, I will dynamically:\n` +
+        `• 📊 Break down your spending by category\n` +
+        `• 💰 Calculate your safe daily spending limit\n` +
+        `• 🔮 Predict your month-end expenses\n` +
+        `• 🎯 Coach you to save ₹5,000+ monthly!`;
+    } else if (q.includes('where') && (q.includes('money') || q.includes('go') || q.includes('spend'))) {
       category = 'spending_breakdown';
-      if (transactions.length === 0) {
-        reply = `You haven't recorded any expenses yet for ${monthName}. As soon as you add transactions, I will analyze your spending breakdown by category!`;
-      } else {
-        const catList = Object.entries(categoryTotals)
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, amt]) => `• **${name}**: ₹${amt.toFixed(2)} (${((amt / totalExpense) * 100).toFixed(0)}%)`)
-          .join('\n');
+      const catList = Object.entries(categoryTotals)
+        .sort((a, b) => b[1] - a[1])
+        .map(([name, amt]) => `• **${name}**: ₹${amt.toFixed(2)} (${((amt / totalExpense) * 100).toFixed(0)}%)`)
+        .join('\n');
 
-        reply = `Here is where your money has gone in **${monthName}**:\n\n` +
-          `• **Total Expenses**: ₹${totalExpense.toFixed(2)}\n` +
-          `• **Top Category**: **${topCategory}** (₹${topCategoryAmount.toFixed(2)} or ${topCategoryPercent}% of total)\n\n` +
-          `**Category Breakdown:**\n${catList}\n\n` +
-          `💡 *Tip: Trimming 15% from ${topCategory} could save you ₹${(topCategoryAmount * 0.15).toFixed(2)} this month.*`;
-      }
+      reply = `Here is where your money has gone in **${monthName}**:\n\n` +
+        `• **Total Expenses**: ₹${totalExpense.toFixed(2)}\n` +
+        `• **Top Category**: **${topCategory}** (₹${topCategoryAmount.toFixed(2)} or ${topCategoryPercent}% of total)\n\n` +
+        `**Category Breakdown:**\n${catList}\n\n` +
+        `💡 *Tip: Trimming 15% from ${topCategory} could save you ₹${(topCategoryAmount * 0.15).toFixed(2)} this month.*`;
     } else if (q.includes('safe') || q.includes('safely spend') || q.includes('today')) {
       category = 'safe_spend';
       reply = `### Safe Daily Spending Limit 💰\n\n` +
@@ -132,11 +138,9 @@ exports.handleChat = async (req, res) => {
     } else if (q.includes('increasing') || q.includes('why') || q.includes('high') || q.includes('unusual')) {
       category = 'anomaly_detection';
       reply = `### Smart Expense Anomaly Detection ⚠️\n\n` +
-        (transactions.length === 0
-          ? `No anomalies detected yet! As you record transactions, I will flag any sudden spikes above your normal baseline.`
-          : `• **Top Contributor**: Spending on **${topCategory}** represents **${topCategoryPercent}%** of your total expenses.\n` +
-            `• **Velocity**: You are currently spending an average of **₹${dailyAverageSpend.toFixed(2)} per day**.\n` +
-            `• **Recommendation**: Review your recent transactions in ${topCategory}. If this was a one-time purchase, your velocity will stabilize.`);
+        `• **Top Contributor**: Spending on **${topCategory}** represents **${topCategoryPercent}%** of your total expenses.\n` +
+        `• **Velocity**: You are currently spending an average of **₹${dailyAverageSpend.toFixed(2)} per day**.\n` +
+        `• **Recommendation**: Review your recent transactions in ${topCategory}. If this was a one-time purchase, your velocity will stabilize.`;
     } else if (q.includes('predict') || q.includes('month-end') || q.includes('forecast')) {
       category = 'expense_prediction';
       reply = `### AI Month-End Expense Prediction 🔮\n\n` +
@@ -163,21 +167,21 @@ exports.handleChat = async (req, res) => {
       category = 'budget_generator';
       const incomeBasis = totalIncome > 0 ? totalIncome : 50000;
       reply = `### AI Budget Generator 📊\n\n` +
-        `Based on the recommended **50/30/20 Smart Allocation** for an income of **₹${incomeBasis.toFixed(2)}**:\n\n` +
+        `Based on the recommended **50/30/20 Smart Allocation** for your income of **₹${incomeBasis.toFixed(2)}**:\n\n` +
         `• **Needs (50%)**: **₹${(incomeBasis * 0.5).toFixed(2)}** (Groceries, Utilities, Housing, Healthcare)\n` +
         `• **Wants (30%)**: **₹${(incomeBasis * 0.3).toFixed(2)}** (Dining, Entertainment, Shopping, Travel)\n` +
         `• **Savings & Debt (20%)**: **₹${(incomeBasis * 0.2).toFixed(2)}** (Emergency Fund & Investments)\n\n` +
-        `Would you like to set category spending limits based on these targets?`;
+        `Keep logging your transactions to see your real-time 50/30/20 compliance!`;
     } else {
       // General financial advisor response
       reply = `### Mono AI Financial Assistant 🤖\n\n` +
-        `I analyzed your current financial records:\n\n` +
+        `Hello **${userName}**! Here is your live financial snapshot:\n\n` +
         `• **Total Balance**: ₹${balance.toFixed(2)}\n` +
         `• **Total Income**: ₹${totalIncome.toFixed(2)}\n` +
         `• **Total Expenses**: ₹${totalExpense.toFixed(2)}\n` +
         `• **Safe Daily Spending**: **₹${safeDailySpend} / day**\n` +
         `• **Projected Month-End**: **₹${predictedMonthEndExpense}**\n\n` +
-        `You can ask me:\n` +
+        `Feel free to ask me:\n` +
         `• *"Where did my money go?"*\n` +
         `• *"How much can I safely spend today?"*\n` +
         `• *"How can I save ₹5,000 monthly?"*\n` +
@@ -234,6 +238,38 @@ exports.getInsights = async (req, res) => {
     const predicted = (dailyAvg * totalDays).toFixed(2);
     const safeDaily = remainingDays > 0 ? Math.max(0, (balance / remainingDays)).toFixed(2) : '0.00';
 
+    if (transactions.length === 0) {
+      return res.json({
+        success: true,
+        insights: [
+          {
+            id: 'safe_daily',
+            title: 'Safe Daily Spending',
+            value: '₹0.00',
+            subtitle: 'Ready to calculate once first income is logged',
+            icon: 'account_balance_wallet',
+            status: 'healthy',
+          },
+          {
+            id: 'prediction',
+            title: 'Month-End Prediction',
+            value: '₹0.00',
+            subtitle: 'Burn rate will calculate with transactions',
+            icon: 'trending_up',
+            status: 'info',
+          },
+          {
+            id: 'savings',
+            title: 'Net Savings Rate',
+            value: '0%',
+            subtitle: 'Tap + to add your first transaction',
+            icon: 'savings',
+            status: 'healthy',
+          },
+        ],
+      });
+    }
+
     return res.json({
       success: true,
       insights: [
@@ -277,20 +313,16 @@ exports.parseVoiceOrText = async (req, res) => {
       return res.status(400).json({ success: false, message: 'Text input is required.' });
     }
 
-    // Heuristic NLP parsing for amount, category, merchant
     const cleaned = text.trim();
-    
-    // Extract numbers (integer or decimal)
     const amountMatch = cleaned.match(/(?:[$₹€£]\s*)?(\d+(?:\.\d{1,2})?)/);
     const amount = amountMatch ? parseFloat(amountMatch[1]) : 0;
 
-    // Detect category & title
     const lower = cleaned.toLowerCase();
     let category = 'General';
     let title = 'Expense';
 
     if (lower.includes('food') || lower.includes('dinner') || lower.includes('lunch') || lower.includes('starbucks') || lower.includes('coffee') || lower.includes('restaurant')) {
-      category = 'Food & Drinks';
+      category = 'Food & Dining';
       title = lower.includes('coffee') ? 'Starbucks Coffee' : 'Dining & Food';
     } else if (lower.includes('petrol') || lower.includes('fuel') || lower.includes('uber') || lower.includes('taxi') || lower.includes('bus') || lower.includes('metro')) {
       category = 'Transport';
@@ -302,10 +334,10 @@ exports.parseVoiceOrText = async (req, res) => {
       category = 'Entertainment';
       title = lower.includes('netflix') ? 'Netflix' : 'Entertainment';
     } else if (lower.includes('gym') || lower.includes('fitness') || lower.includes('workout')) {
-      category = 'Gym & Fitness';
+      category = 'Fitness';
       title = 'Gym Membership';
     } else if (lower.includes('salary') || lower.includes('freelance') || lower.includes('income')) {
-      category = 'Income';
+      category = 'Salary';
       title = 'Income Received';
     }
 
@@ -331,9 +363,8 @@ exports.scanReceipt = async (req, res) => {
   try {
     const { receiptData, sampleType } = req.body;
 
-    // Standard preset receipts or parsed OCR simulation
     const presets = {
-      coffee: { merchant: 'Starbucks Coffee', amount: 350.00, category: 'Grocery', date: new Date().toISOString().split('T')[0] },
+      coffee: { merchant: 'Starbucks Coffee', amount: 350.00, category: 'Food & Dining', date: new Date().toISOString().split('T')[0] },
       groceries: { merchant: 'Reliance Smart Supermarket', amount: 1450.00, category: 'Grocery', date: new Date().toISOString().split('T')[0] },
       entertainment: { merchant: 'Netflix Subscription', amount: 499.00, category: 'Entertainment', date: new Date().toISOString().split('T')[0] },
       fuel: { merchant: 'Indian Oil Petrol Pump', amount: 1200.00, category: 'Transport', date: new Date().toISOString().split('T')[0] },

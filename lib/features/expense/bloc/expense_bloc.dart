@@ -18,6 +18,7 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     on<ChangeStatisticTypeEvent>(_onChangeStatisticType);
     on<AddCategoryEvent>(_onAddCategory);
     on<DeleteCategoryEvent>(_onDeleteCategory);
+    on<DeleteTransactionEvent>(_onDeleteTransaction);
   }
 
   static IconData iconFromName(String? iconName) {
@@ -473,6 +474,60 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
           await apiClient!.dio.delete('/categories/${event.categoryId}');
         } catch (e) {
           debugPrint('[ExpenseBloc] Delete category API error: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> _onDeleteTransaction(
+    DeleteTransactionEvent event,
+    Emitter<ExpenseState> emit,
+  ) async {
+    if (state is ExpenseLoaded) {
+      final current = state as ExpenseLoaded;
+      final target = current.transactions.firstWhere(
+        (t) => t.id == event.transactionId,
+        orElse: () => TransactionModel(
+          id: '',
+          title: '',
+          category: '',
+          amount: 0,
+          type: TransactionType.expense,
+          date: DateTime.now(),
+        ),
+      );
+
+      final updatedList = current.transactions
+          .where((t) => t.id != event.transactionId)
+          .toList();
+
+      double newIncome = current.totalIncome;
+      double newExpense = current.totalExpense;
+      double newBalance = current.totalBalance;
+
+      if (target.id.isNotEmpty) {
+        if (target.isIncome) {
+          newIncome -= target.amount;
+          newBalance -= target.amount;
+        } else {
+          newExpense -= target.amount;
+          newBalance += target.amount;
+        }
+      }
+
+      emit(current.copyWith(
+        totalBalance: newBalance,
+        totalIncome: newIncome,
+        totalExpense: newExpense,
+        transactions: updatedList,
+      ));
+
+      if (apiClient != null) {
+        try {
+          await apiClient!.dio.delete('/transactions/${event.transactionId}');
+          _refreshStatisticsSilently(emit);
+        } catch (e) {
+          debugPrint('[ExpenseBloc] Delete transaction API error: $e');
         }
       }
     }

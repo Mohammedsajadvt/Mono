@@ -557,7 +557,7 @@ class HomeScreen extends StatelessWidget {
                     itemCount: state.transactions.length.clamp(0, 5),
                     itemBuilder: (context, index) {
                       final item = state.transactions[index];
-                      return _buildTransactionTile(item);
+                      return _buildTransactionTile(context, item);
                     },
                   );
                 }
@@ -741,7 +741,7 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildTransactionTile(TransactionModel item) {
+  Widget _buildTransactionTile(BuildContext context, TransactionModel item) {
     IconData iconData = Icons.receipt_long_rounded;
     Color iconBg = const Color(0xFFF4F6F6);
     Color iconColor = AppColors.primary;
@@ -788,52 +788,175 @@ class HomeScreen extends StatelessWidget {
     final amountColor =
         item.isIncome ? const Color(0xFF25A969) : const Color(0xFFF95B51);
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      child: Row(
-        children: [
-          Container(
-            width: 50,
-            height: 50,
-            decoration: BoxDecoration(
-              color: iconBg,
-              borderRadius: BorderRadius.circular(14),
+    return InkWell(
+      onTap: () => _confirmDeleteTransaction(context, item),
+      onLongPress: () => _confirmDeleteTransaction(context, item),
+      borderRadius: BorderRadius.circular(16),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+        child: Row(
+          children: [
+            Container(
+              width: 50,
+              height: 50,
+              decoration: BoxDecoration(
+                color: iconBg,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Icon(iconData, color: iconColor, size: 26),
             ),
-            child: Icon(iconData, color: iconColor, size: 26),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    item.title,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF222222),
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    item.category,
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      color: const Color(0xFF888888),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              item.formattedAmount,
+              style: GoogleFonts.inter(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: amountColor,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _confirmDeleteTransaction(BuildContext context, TransactionModel item) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (sheetCtx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 44,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
+            const SizedBox(height: 18),
+            Container(
+              width: 48,
+              height: 48,
+              decoration: const BoxDecoration(
+                color: Color(0xFFFEE2E2),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.delete_outline_rounded,
+                  color: Color(0xFFDC2626), size: 26),
+            ),
+            const SizedBox(height: 14),
+            Text(
+              'Delete Transaction?',
+              style: GoogleFonts.inter(
+                fontSize: 18,
+                fontWeight: FontWeight.w700,
+                color: const Color(0xFF222222),
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Do you want to delete "${item.title}" (${item.formattedAmount})? This will update your balance and statistics.',
+              textAlign: TextAlign.center,
+              style: GoogleFonts.inter(
+                fontSize: 13,
+                color: const Color(0xFF666666),
+              ),
+            ),
+            const SizedBox(height: 22),
+            Row(
               children: [
-                Text(
-                  item.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF222222),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => Navigator.of(sheetCtx).pop(),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(color: Colors.grey.shade300),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(
+                      'Cancel',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF444444),
+                      ),
+                    ),
                   ),
                 ),
-                const SizedBox(height: 3),
-                Text(
-                  item.category,
-                  style: GoogleFonts.inter(
-                    fontSize: 13,
-                    color: const Color(0xFF888888),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(sheetCtx).pop();
+                      context
+                          .read<ExpenseBloc>()
+                          .add(DeleteTransactionEvent(item.id));
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('Deleted "${item.title}"'),
+                          backgroundColor: AppColors.primary,
+                          behavior: SnackBarBehavior.floating,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      );
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    child: Text(
+                      'Delete',
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: Colors.white,
+                      ),
+                    ),
                   ),
                 ),
               ],
             ),
-          ),
-          Text(
-            item.formattedAmount,
-            style: GoogleFonts.inter(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: amountColor,
-            ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

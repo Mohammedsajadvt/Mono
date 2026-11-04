@@ -64,3 +64,12 @@ class UpdateCategoryEvent extends ExpenseEvent {
   @override
   List<Object?> get props => [category];
 }
+
+class DeleteTransactionEvent extends ExpenseEvent {
+  final String transactionId;
+
+  const DeleteTransactionEvent(this.transactionId);
+
+  @override
+  List<Object?> get props => [transactionId];
+}

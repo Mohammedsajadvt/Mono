@@ -1,20 +1,15 @@
 import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
 import 'package:mono_app/core/storage/secure_storage_service.dart';
 
 class ApiClient {
   final Dio dio;
   final SecureStorageService secureStorage;
 
+  static const String productionBaseUrl = 'https://mono-nbt6.onrender.com/api';
+
   static String get defaultBaseUrl {
-    if (kIsWeb) {
-      return 'http://localhost:3000/api';
-    }
-    if (defaultTargetPlatform == TargetPlatform.android) {
-      // 10.0.2.2 maps to host machine localhost in Android Emulator
-      return 'http://10.0.2.2:3000/api';
-    }
-    return 'http://localhost:3000/api';
+    // Use the live production Render backend with TiDB Cloud
+    return productionBaseUrl;
   }
 
   ApiClient({

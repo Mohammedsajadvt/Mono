@@ -21,6 +21,17 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
+// Root Welcome API
+app.get('/', (req, res) => {
+  res.json({
+    service: 'Mono Expense Tracker REST API',
+    version: '1.0.0',
+    status: 'online',
+    database: 'TiDB Cloud (MySQL)',
+    healthCheck: '/api/health',
+  });
+});
+
 // Health Check API
 app.get('/api/health', (req, res) => {
   res.json({

@@ -6,15 +6,39 @@
 
 **A modern, production-grade personal finance and smart expense tracking ecosystem built with Flutter, BLoC, Node.js, Express, and TiDB Cloud (MySQL).**
 
+[![Download APK](https://img.shields.io/badge/Download%20APK-Google%20Drive-34A853?logo=google-drive&logoColor=white&style=for-the-badge)](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
+
+<br/>
+
 [![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter&logoColor=white)](https://flutter.dev)
 [![Dart](https://img.shields.io/badge/Dart-3.x-0175C2?logo=dart&logoColor=white)](https://dart.dev)
 [![Node.js](https://img.shields.io/badge/Node.js-v20+-339933?logo=node.js&logoColor=white)](https://nodejs.org)
 [![Express](https://img.shields.io/badge/Express-4.x-black?logo=express&logoColor=white)](https://expressjs.com)
+[![Render](https://img.shields.io/badge/Render-Live%20Online-46E3B7?logo=render&logoColor=black)](https://mono-nbt6.onrender.com/api/health)
 [![TiDB Cloud](https://img.shields.io/badge/TiDB%20Cloud-MySQL-00758F?logo=mysql&logoColor=white)](https://tidbcloud.com)
 [![BLoC](https://img.shields.io/badge/Architecture-BLoC-8A2BE2)](https://bloclibrary.dev)
 [![Currency](https://img.shields.io/badge/Currency-INR%20(%E2%82%B9)-16A34A)](#)
 
 </div>
+
+---
+
+## 📥 Download Release APK (Android)
+
+Get the latest production-ready build for Android:
+
+[![Download APK Button](https://img.shields.io/badge/%E2%AC%87%EF%B8%8F_Download_Mono_APK_v1.0.0-Google_Drive-34A853?style=for-the-badge&logo=google-drive&logoColor=white)](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
+
+- **Direct Google Drive Link**: [Mono Release APK Folder](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
+- **Version**: `v1.0.0 (Production Release)`
+- **Target OS**: Android 6.0+ (API Level 23+)
+- **Cloud Backend**: Connected out-of-the-box to **Render** & **TiDB Cloud**
+
+#### Quick Installation Guide:
+1. Tap the link above to open Google Drive and download **`Mono_Release_v1.0.0.apk`** (or `app-release.apk`).
+2. Open the downloaded file on your Android smartphone.
+3. If prompted, allow *"Install from Unknown Sources"* in your device settings.
+4. Launch Mono and start managing your expenses & income smarter!
 
 ---
 
@@ -51,7 +75,13 @@
 
 ---
 
-## 🏛️ System Architecture
+## 🌐 Live Production Deployment
+
+- **Backend Base URL**: [`https://mono-nbt6.onrender.com/api`](https://mono-nbt6.onrender.com/api)
+- **Health Check Status**: [`https://mono-nbt6.onrender.com/api/health`](https://mono-nbt6.onrender.com/api/health)
+- **Database Engine**: TiDB Cloud Serverless MySQL (Port 4000 over TLS/SSL)
+
+---
 
 ```mermaid
 flowchart TD

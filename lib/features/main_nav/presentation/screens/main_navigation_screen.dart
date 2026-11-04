@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
+import 'package:mono_app/core/services/app_update_service.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/home/presentation/screens/home_screen.dart';
@@ -25,6 +26,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted) {
         context.read<ExpenseBloc>().add(LoadExpensesEvent());
+        AppUpdateService.checkUpdate(context, silent: true);
       }
     });
   }

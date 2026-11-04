@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
+import 'package:mono_app/core/services/app_update_service.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
 import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
 import 'package:mono_app/features/auth/bloc/auth_event.dart';
@@ -314,6 +315,36 @@ class ProfileScreen extends StatelessWidget {
                           icon: Icons.info_outline_rounded,
                           label: 'Version',
                           value: 'Mono v1.0.0 (Production)',
+                        ),
+                        const Divider(height: 1, indent: 52),
+                        InkWell(
+                          onTap: () => AppUpdateService.checkUpdate(context,
+                              silent: false),
+                          borderRadius: const BorderRadius.vertical(
+                              bottom: Radius.circular(16)),
+                          child: _buildInfoRow(
+                            icon: Icons.system_update_rounded,
+                            label: 'Check for Updates',
+                            valueWidget: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Check Now',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.primary,
+                                  ),
+                                ),
+                                const SizedBox(width: 4),
+                                const Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 12,
+                                  color: AppColors.primary,
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ],
                     ),

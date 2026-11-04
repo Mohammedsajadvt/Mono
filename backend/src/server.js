@@ -11,6 +11,7 @@ const authRoutes = require('./routes/authRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');
 const aiRoutes = require('./routes/aiRoutes');
+const appRoutes = require('./routes/appRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -46,6 +47,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/app', appRoutes);
 
 // 404 Route Handler
 app.use((req, res) => {

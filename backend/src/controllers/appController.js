@@ -20,3 +20,4 @@ const getAppVersion = async (req, res) => {
 };
 
 module.exports = { getAppVersion };
+

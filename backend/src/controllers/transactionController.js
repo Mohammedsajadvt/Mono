@@ -79,12 +79,27 @@ const createTransaction = async (req, res) => {
       }
     }
 
+    // Validate category ownership: Ensure category belongs to this authenticated user
+    if (resolvedCategoryId) {
+      const [categoryCheck] = await pool.execute(
+        'SELECT id FROM categories WHERE id = ? AND user_id = ? LIMIT 1',
+        [resolvedCategoryId, userId]
+      );
+      if (categoryCheck.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category. The specified category does not exist or does not belong to your account.',
+        });
+      }
+    }
+
     const [result] = await pool.execute(
       `INSERT INTO transactions (user_id, category_id, title, type, amount, transaction_date, invoice_url, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, resolvedCategoryId, title, txType, numericAmount, txDate, invoice_url || null, notes || null]
     );
 
+    // Follow-up SELECT strictly scoped by both transaction id AND user_id
     const [newRows] = await pool.execute(
       `SELECT t.id, t.user_id, t.category_id, t.title, t.type, t.amount, 
               DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
@@ -92,8 +107,8 @@ const createTransaction = async (req, res) => {
               c.name as category_name, c.icon as category_icon, c.color as category_color
        FROM transactions t
        LEFT JOIN categories c ON t.category_id = c.id
-       WHERE t.id = ?`,
-      [result.insertId]
+       WHERE t.id = ? AND t.user_id = ?`,
+      [result.insertId, userId]
     );
 
     return res.status(201).json({

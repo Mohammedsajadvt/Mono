@@ -7,6 +7,16 @@ const dotenv = require('dotenv');
 dotenv.config({ path: path.resolve(__dirname, '../.env') });
 dotenv.config();
 
+// Fail startup immediately if JWT_SECRET is missing (P0 Security Enforced)
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET.trim() === '') {
+  console.error('\n======================================================');
+  console.error(' [FATAL STARTUP ERROR] JWT_SECRET is not configured!');
+  console.error(' A secure, non-predictable JWT_SECRET must be set in');
+  console.error(' environment variables for the server to start safely.');
+  console.error('======================================================\n');
+  process.exit(1);
+}
+
 const authRoutes = require('./routes/authRoutes');
 const categoryRoutes = require('./routes/categoryRoutes');
 const transactionRoutes = require('./routes/transactionRoutes');

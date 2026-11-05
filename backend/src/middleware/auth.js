@@ -20,7 +20,15 @@ const verifyToken = (req, res, next) => {
   const token = parts[1];
 
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET || 'mono_jwt_super_secret_key_2026_secured');
+    const secret = process.env.JWT_SECRET;
+    if (!secret) {
+      console.error('[FATAL] JWT_SECRET environment variable is missing.');
+      return res.status(500).json({
+        success: false,
+        message: 'Server security configuration error.',
+      });
+    }
+    const decoded = jwt.verify(token, secret);
     req.user = decoded;
     next();
   } catch (error) {

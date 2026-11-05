@@ -2,17 +2,20 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { seedDefaultCategoriesForUser } = require('./categoryController');
-const { sendOtpEmail } = require('../config/email');
 
 // Generate JWT Helper
 const generateToken = (user) => {
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error('FATAL: JWT_SECRET environment variable is missing.');
+  }
   return jwt.sign(
     {
       id: user.id,
       email: user.email,
       name: user.name,
     },
-    process.env.JWT_SECRET || 'mono_jwt_super_secret_key_2026_secured',
+    secret,
     { expiresIn: process.env.JWT_EXPIRES_IN || '7d' }
   );
 };
@@ -90,7 +93,6 @@ const register = async (req, res) => {
 const login = async (req, res) => {
   try {
     const { email, password } = req.body;
-    console.log('[login attempt]', { email, passwordLength: password ? password.length : 0 });
 
     if (!email || !password) {
       return res.status(400).json({
@@ -204,65 +206,10 @@ const updateProfile = async (req, res) => {
   }
 };
 
-// POST /api/auth/forgot-password (Step 1: Send 6-digit confirmation code)
-const requestPasswordReset = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email || !email.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter your registered email address.',
-      });
-    }
-
-    const cleanEmail = email.toLowerCase().trim();
-
-    // Check if user exists
-    const [users] = await pool.execute(
-      'SELECT id, name, email FROM users WHERE email = ?',
-      [cleanEmail]
-    );
-
-    if (users.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: 'No registered account found with this email address.',
-      });
-    }
-
-    // Generate secure 6-digit OTP confirmation code
-    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
-
-    // Invalidate any previous codes for this email
-    await pool.execute('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
-
-    // Save code to database with 15-minute expiration
-    await pool.execute(
-      'INSERT INTO password_resets (email, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
-      [cleanEmail, otpCode]
-    );
-
-    // Send email with confirmation code
-    const emailResult = await sendOtpEmail(cleanEmail, otpCode, users[0].name);
-
-    return res.json({
-      success: true,
-      message: 'A 6-digit verification code has been sent to your email.',
-      ...(emailResult.mock ? { devCode: otpCode } : {}),
-    });
-  } catch (error) {
-    console.error('[AuthController.requestPasswordReset] Error:', error);
-    return res.status(500).json({
-      success: false,
-      message: 'Failed to process password reset request.',
-    });
-  }
-};
-
-// POST /api/auth/reset-password (Step 2: Verify code and set new password)
+// POST /api/auth/reset-password or /api/auth/forgot-password
 const resetPassword = async (req, res) => {
   try {
-    const { email, code, newPassword } = req.body;
+    const { email, newPassword } = req.body;
 
     if (!email || !newPassword) {
       return res.status(400).json({
@@ -280,16 +227,6 @@ const resetPassword = async (req, res) => {
 
     const cleanEmail = email.toLowerCase().trim();
 
-    // Require 6-digit confirmation code
-    if (!code || !code.trim()) {
-      return res.status(400).json({
-        success: false,
-        message: 'Please enter the 6-digit verification code sent to your email.',
-      });
-    }
-
-    const cleanCode = code.trim();
-
     // Check if user exists
     const [users] = await pool.execute(
       'SELECT id, name, email FROM users WHERE email = ?',
@@ -303,19 +240,6 @@ const resetPassword = async (req, res) => {
       });
     }
 
-    // Verify confirmation code from database
-    const [resets] = await pool.execute(
-      'SELECT id FROM password_resets WHERE email = ? AND otp_code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1',
-      [cleanEmail, cleanCode]
-    );
-
-    if (resets.length === 0) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid or expired verification code. Please check your email or request a new code.',
-      });
-    }
-
     // Hash new password
     const salt = await bcrypt.genSalt(10);
     const passwordHash = await bcrypt.hash(newPassword, salt);
@@ -325,9 +249,6 @@ const resetPassword = async (req, res) => {
       'UPDATE users SET password_hash = ? WHERE id = ?',
       [passwordHash, users[0].id]
     );
-
-    // Delete used confirmation code
-    await pool.execute('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
 
     return res.json({
       success: true,
@@ -347,6 +268,5 @@ module.exports = {
   login,
   getMe,
   updateProfile,
-  requestPasswordReset,
   resetPassword,
 };

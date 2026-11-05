@@ -8,8 +8,8 @@ import 'package:mono_app/core/network/api_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppUpdateService {
-  static const String currentAppVersion = '1.0.1';
-  static const int currentBuildNumber = 2;
+  static const String currentAppVersion = '1.0.2';
+  static const int currentBuildNumber = 3;
 
   static bool _hasPromptedThisSession = false;
 

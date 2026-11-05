@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/network/api_client.dart';
 import 'package:mono_app/core/storage/secure_storage_service.dart';
+import 'package:mono_app/core/widgets/custom_date_range_dialog.dart';
 import 'package:mono_app/core/widgets/shimmer_loading.dart';
 import 'package:mono_app/features/add_expense/presentation/screens/add_expense_screen.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
@@ -150,11 +151,9 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
                     style: GoogleFonts.inter(fontSize: 12)),
                 onTap: () async {
                   Navigator.of(bCtx).pop();
-                  final picked = await showDateRangePicker(
-                    context: context,
-                    firstDate: DateTime(2020),
-                    lastDate: DateTime.now().add(const Duration(days: 365)),
-                    initialDateRange: _selectedDateRange ??
+                  final picked = await showCustomDateRangeDialog(
+                    context,
+                    initialRange: _selectedDateRange ??
                         DateTimeRange(
                           start: DateTime.now().subtract(const Duration(days: 30)),
                           end: DateTime.now(),

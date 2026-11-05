@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
+import 'package:mono_app/core/widgets/custom_date_range_dialog.dart';
 import 'package:mono_app/features/statistics/services/export_service.dart';
 
 class ExportStatementSheet extends StatefulWidget {
@@ -888,11 +889,9 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                 return GestureDetector(
                   onTap: () async {
                     if (p['id'] == 'custom') {
-                      final picked = await showDateRangePicker(
-                        context: context,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                        initialDateRange: _customDateRange ??
+                      final picked = await showCustomDateRangeDialog(
+                        context,
+                        initialRange: _customDateRange ??
                             DateTimeRange(
                               start: DateTime.now()
                                   .subtract(const Duration(days: 30)),
@@ -985,11 +984,9 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                   ),
                   GestureDetector(
                     onTap: () async {
-                      final picked = await showDateRangePicker(
-                        context: context,
-                        firstDate: DateTime(2020),
-                        lastDate: DateTime.now().add(const Duration(days: 365)),
-                        initialDateRange: _customDateRange,
+                      final picked = await showCustomDateRangeDialog(
+                        context,
+                        initialRange: _customDateRange,
                       );
                       if (picked != null) {
                         setState(() => _customDateRange = picked);

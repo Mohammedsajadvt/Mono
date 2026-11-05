@@ -19,6 +19,8 @@ class CategoriesScreen extends StatefulWidget {
 class _CategoriesScreenState extends State<CategoriesScreen> {
   final _searchController = TextEditingController();
   String _searchQuery = '';
+  int _currentPage = 1;
+  static const int _pageSize = 8;
 
   @override
   void dispose() {
@@ -161,6 +163,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                       onChanged: (val) {
                         setState(() {
                           _searchQuery = val.trim().toLowerCase();
+                          _currentPage = 1;
                         });
                       },
                       decoration: InputDecoration(
@@ -185,6 +188,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                                   _searchController.clear();
                                   setState(() {
                                     _searchQuery = '';
+                                    _currentPage = 1;
                                   });
                                 },
                               )
@@ -281,18 +285,80 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                             ],
                           ),
                         )
-                      else
-                        ListView.separated(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          itemCount: categories.length,
-                          separatorBuilder: (_, __) =>
-                              const SizedBox(height: 10),
-                          itemBuilder: (context, index) {
-                            final category = categories[index];
-                            return _buildCategoryCard(context, category);
+                      else ...[
+                        Builder(
+                          builder: (context) {
+                            final totalCategories = categories.length;
+                            final totalPages = (totalCategories / _pageSize).ceil();
+                            final validPage = _currentPage > totalPages && totalPages > 0 ? totalPages : _currentPage;
+                            final startIndex = (validPage - 1) * _pageSize;
+                            final pagedCategories = categories
+                                .skip(startIndex)
+                                .take(_pageSize)
+                                .toList();
+
+                            return Column(
+                              children: [
+                                ListView.separated(
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  itemCount: pagedCategories.length,
+                                  separatorBuilder: (_, __) =>
+                                      const SizedBox(height: 10),
+                                  itemBuilder: (context, index) {
+                                    final category = pagedCategories[index];
+                                    return _buildCategoryCard(context, category);
+                                  },
+                                ),
+                                if (totalPages > 1) ...[
+                                  const SizedBox(height: 14),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(14),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.black.withOpacity(0.04),
+                                          blurRadius: 10,
+                                          offset: const Offset(0, 4),
+                                        ),
+                                      ],
+                                    ),
+                                    child: Row(
+                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(Icons.chevron_left_rounded),
+                                          color: validPage > 1 ? AppColors.primary : Colors.grey.shade400,
+                                          onPressed: validPage > 1
+                                              ? () => setState(() => _currentPage = validPage - 1)
+                                              : null,
+                                        ),
+                                        Text(
+                                          'Page $validPage of $totalPages ($totalCategories total)',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 12.5,
+                                            fontWeight: FontWeight.w600,
+                                            color: const Color(0xFF444444),
+                                          ),
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(Icons.chevron_right_rounded),
+                                          color: validPage < totalPages ? AppColors.primary : Colors.grey.shade400,
+                                          onPressed: validPage < totalPages
+                                              ? () => setState(() => _currentPage = validPage + 1)
+                                              : null,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ],
+                            );
                           },
                         ),
+                      ],
                       const SizedBox(height: 100),
                     ],
                   );

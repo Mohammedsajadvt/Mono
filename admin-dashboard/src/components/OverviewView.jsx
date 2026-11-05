@@ -7,9 +7,13 @@ import {
   UserPlus, 
   Zap, 
   Clock, 
-  ArrowRight,
-  ShieldCheck,
-  Wallet
+  ArrowRight, 
+  ShieldCheck, 
+  Wallet,
+  Calendar,
+  Sparkles,
+  CheckCircle2,
+  Scale
 } from 'lucide-react';
 import {
   Chart as ChartJS,
@@ -67,6 +71,48 @@ export default function OverviewView({ onNavigate, showToast }) {
   }
 
   const { stats, recentTransactions, recentUsers, topCategories, monthlyTrend, system } = data;
+
+  // Lifetime Totals (all preserved and augmented with net balance)
+  const totalUsers = stats?.totalUsers || 0;
+  const todayNewUsers = stats?.todayNewUsers || 0;
+  const totalTransactions = stats?.totalTransactions || 0;
+  const todayTransactions = stats?.todayTransactions || 0;
+  const totalIncome = stats?.totalIncome || 0;
+  const totalExpense = stats?.totalExpense || 0;
+  const totalBalance = stats?.totalBalance !== undefined 
+    ? stats.totalBalance 
+    : (totalIncome - totalExpense);
+
+  // This Month Metrics
+  const thisMonthIncome = stats?.thisMonthIncome || 0;
+  const thisMonthExpense = stats?.thisMonthExpense || 0;
+  const thisMonthBalance = stats?.thisMonthBalance !== undefined 
+    ? stats.thisMonthBalance 
+    : (thisMonthIncome - thisMonthExpense);
+  const thisMonthTx = stats?.thisMonthTransactions || 0;
+  const thisMonthLabel = stats?.thisMonthLabel || 'This Month';
+
+  // Last Month Metrics
+  const lastMonthIncome = stats?.lastMonthIncome || 0;
+  const lastMonthExpense = stats?.lastMonthExpense || 0;
+  const lastMonthBalance = stats?.lastMonthBalance !== undefined 
+    ? stats.lastMonthBalance 
+    : (lastMonthIncome - lastMonthExpense);
+  const lastMonthTx = stats?.lastMonthTransactions || 0;
+  const lastMonthLabel = stats?.lastMonthLabel || 'Last Month';
+
+  // Month-over-Month (MoM) Growth & Variance
+  const momExpenseChangePct = stats?.momExpenseChangePct !== undefined
+    ? stats.momExpenseChangePct
+    : (lastMonthExpense > 0 ? Math.round(((thisMonthExpense - lastMonthExpense) / lastMonthExpense) * 1000) / 10 : 0);
+
+  const momBalanceDiff = stats?.momBalanceDiff !== undefined
+    ? stats.momBalanceDiff
+    : (thisMonthBalance - lastMonthBalance);
+
+  const savingsRate = thisMonthIncome > 0
+    ? Math.max(0, Math.min(100, Math.round(((thisMonthIncome - thisMonthExpense) / thisMonthIncome) * 100)))
+    : 0;
 
   // Chart 1: Monthly Trend
   const barLabels = monthlyTrend?.length > 0 ? monthlyTrend.map(d => d.month_label) : ['No Data'];
@@ -156,30 +202,19 @@ export default function OverviewView({ onNavigate, showToast }) {
 
   return (
     <div className="view-section">
-      {/* 4 STAT CARDS */}
+      {/* 5 LIFETIME STAT CARDS (Keep existing totals + Total Net Balance) */}
       <div className="stats-grid">
         <div className="stat-card">
-          <div className="stat-card-icon icon-users">
-            <Users size={22} />
+          <div className="stat-card-icon icon-balance">
+            <Wallet size={22} />
           </div>
           <div className="stat-card-content">
-            <span className="stat-label">Total Users</span>
-            <h3 className="stat-value">{stats.totalUsers.toLocaleString()}</h3>
-            <span className="stat-sub positive">
-              <UserPlus size={12} /> +{stats.todayNewUsers} today
-            </span>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-card-icon icon-tx">
-            <Receipt size={22} />
-          </div>
-          <div className="stat-card-content">
-            <span className="stat-label">Total Transactions</span>
-            <h3 className="stat-value">{stats.totalTransactions.toLocaleString()}</h3>
-            <span className="stat-sub positive">
-              <Zap size={12} /> +{stats.todayTransactions} today
+            <span className="stat-label">Total Net Balance</span>
+            <h3 className={`stat-value ${totalBalance >= 0 ? 'text-income' : 'text-expense'}`}>
+              {formatINR(totalBalance)}
+            </h3>
+            <span className={`stat-sub ${totalBalance >= 0 ? 'positive' : 'negative'}`}>
+              <ShieldCheck size={12} /> {totalBalance >= 0 ? 'Surplus Reserve' : 'Deficit Reserve'}
             </span>
           </div>
         </div>
@@ -190,7 +225,7 @@ export default function OverviewView({ onNavigate, showToast }) {
           </div>
           <div className="stat-card-content">
             <span className="stat-label">Total Income Volume</span>
-            <h3 className="stat-value text-income">{formatINR(stats.totalIncome)}</h3>
+            <h3 className="stat-value text-income">{formatINR(totalIncome)}</h3>
             <span className="stat-sub neutral">
               <ShieldCheck size={12} /> Verified Credits
             </span>
@@ -203,10 +238,170 @@ export default function OverviewView({ onNavigate, showToast }) {
           </div>
           <div className="stat-card-content">
             <span className="stat-label">Total Expense Volume</span>
-            <h3 className="stat-value text-expense">{formatINR(stats.totalExpense)}</h3>
+            <h3 className="stat-value text-expense">{formatINR(totalExpense)}</h3>
             <span className="stat-sub neutral">
-              <Wallet size={12} /> Recorded Debits
+              <Receipt size={12} /> Recorded Debits
             </span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-card-icon icon-users">
+            <Users size={22} />
+          </div>
+          <div className="stat-card-content">
+            <span className="stat-label">Total Users</span>
+            <h3 className="stat-value">{totalUsers.toLocaleString()}</h3>
+            <span className="stat-sub positive">
+              <UserPlus size={12} /> +{todayNewUsers} today
+            </span>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-card-icon icon-tx">
+            <Receipt size={22} />
+          </div>
+          <div className="stat-card-content">
+            <span className="stat-label">Total Transactions</span>
+            <h3 className="stat-value">{totalTransactions.toLocaleString()}</h3>
+            <span className="stat-sub positive">
+              <Zap size={12} /> +{todayTransactions} today
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* DETAILED MONTHLY PERFORMANCE (This Month Balance & Expense, Last Month Balance & Expense, and MoM Comparison) */}
+      <div className="dashboard-subheading">
+        <h4>
+          <Calendar size={18} color="var(--primary)" />
+          Monthly Financial Performance & Comparison
+        </h4>
+        <span>Current billing cycle vs previous closed period</span>
+      </div>
+
+      <div className="monthly-grid">
+        {/* THIS MONTH CARD */}
+        <div className="month-feature-card highlight">
+          <div className="month-card-header">
+            <div className="month-card-title">
+              <Calendar size={16} color="var(--primary)" />
+              <strong>{thisMonthLabel}</strong>
+            </div>
+            <span className="month-badge current">Current Month</span>
+          </div>
+
+          <div className="month-main-metric">
+            <span className="month-main-label">This Month Balance</span>
+            <h3 className={`month-main-val ${thisMonthBalance >= 0 ? 'text-income' : 'text-expense'}`}>
+              {formatINR(thisMonthBalance)}
+            </h3>
+            <span className={`badge ${thisMonthBalance >= 0 ? 'badge-income' : 'badge-expense'}`} style={{ marginTop: 6 }}>
+              {thisMonthBalance >= 0 ? 'Net Surplus' : 'Net Deficit'}
+            </span>
+          </div>
+
+          <div className="month-sub-grid">
+            <div className="month-sub-col">
+              <span>This Month Exp</span>
+              <strong className="text-expense">{formatINR(thisMonthExpense)}</strong>
+            </div>
+            <div className="month-sub-col">
+              <span>This Month Inc</span>
+              <strong className="text-income">{formatINR(thisMonthIncome)}</strong>
+            </div>
+          </div>
+
+          <div className="month-footer-note">
+            <Clock size={13} color="var(--text-muted)" />
+            <span>{thisMonthTx} transactions recorded this month</span>
+          </div>
+        </div>
+
+        {/* LAST MONTH CARD */}
+        <div className="month-feature-card">
+          <div className="month-card-header">
+            <div className="month-card-title">
+              <Clock size={16} color="var(--text-secondary)" />
+              <strong>{lastMonthLabel}</strong>
+            </div>
+            <span className="month-badge previous">Last Month</span>
+          </div>
+
+          <div className="month-main-metric">
+            <span className="month-main-label">Last Month Balance</span>
+            <h3 className={`month-main-val ${lastMonthBalance >= 0 ? 'text-income' : 'text-expense'}`}>
+              {formatINR(lastMonthBalance)}
+            </h3>
+            <span className={`badge ${lastMonthBalance >= 0 ? 'badge-income' : 'badge-expense'}`} style={{ marginTop: 6 }}>
+              {lastMonthBalance >= 0 ? 'Closed Surplus' : 'Closed Deficit'}
+            </span>
+          </div>
+
+          <div className="month-sub-grid">
+            <div className="month-sub-col">
+              <span>Last Month Exp</span>
+              <strong className="text-expense">{formatINR(lastMonthExpense)}</strong>
+            </div>
+            <div className="month-sub-col">
+              <span>Last Month Inc</span>
+              <strong className="text-income">{formatINR(lastMonthIncome)}</strong>
+            </div>
+          </div>
+
+          <div className="month-footer-note">
+            <CheckCircle2 size={13} color="var(--text-muted)" />
+            <span>{lastMonthTx} finalized transactions</span>
+          </div>
+        </div>
+
+        {/* MONTH-OVER-MONTH HEALTH & VARIANCE INSIGHT */}
+        <div className="insight-card">
+          <div className="insight-header">
+            <strong>
+              <Sparkles size={16} />
+              MoM Variance & Retention
+            </strong>
+            <span className="insight-badge">Health Metric</span>
+          </div>
+
+          <div className="insight-row">
+            <div className="insight-row-top">
+              <span>Expense MoM Variance</span>
+              <span className="insight-badge">
+                {momExpenseChangePct <= 0 ? 'Controlled' : 'Elevated'}
+              </span>
+            </div>
+            <div className="insight-row-val">
+              <span>{momExpenseChangePct <= 0 ? '↓ ' : '↑ '}{Math.abs(momExpenseChangePct)}%</span>
+              <small style={{ fontSize: 11, opacity: 0.85 }}>
+                {formatINR(Math.abs(thisMonthExpense - lastMonthExpense))} {thisMonthExpense <= lastMonthExpense ? 'savings' : 'growth'}
+              </small>
+            </div>
+          </div>
+
+          <div className="insight-row">
+            <div className="insight-row-top">
+              <span>Net Balance Delta</span>
+              <span className="insight-badge">
+                {momBalanceDiff >= 0 ? 'Gain' : 'Drawdown'}
+              </span>
+            </div>
+            <div className="insight-row-val">
+              <span>{momBalanceDiff >= 0 ? '+' : ''}{formatINR(momBalanceDiff)}</span>
+              <small style={{ fontSize: 11, opacity: 0.85 }}>vs {lastMonthLabel}</small>
+            </div>
+          </div>
+
+          <div className="insight-row" style={{ marginBottom: 0 }}>
+            <div className="insight-row-top">
+              <span>Active Retention Rate</span>
+              <span>{savingsRate}% retained</span>
+            </div>
+            <div className="savings-bar-bg">
+              <div className="savings-bar-fill" style={{ width: `${savingsRate}%` }}></div>
+            </div>
           </div>
         </div>
       </div>
@@ -425,4 +620,3 @@ export default function OverviewView({ onNavigate, showToast }) {
     </div>
   );
 }
-

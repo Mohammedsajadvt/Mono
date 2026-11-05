@@ -3,8 +3,11 @@ const router = express.Router();
 const adminController = require('../controllers/adminController');
 const { verifyAdminToken } = require('../middleware/adminAuth');
 
-// Public admin login endpoint
+// Public admin authentication endpoints
 router.post('/login', adminController.adminLogin);
+router.post('/register', adminController.adminRegister);
+router.post('/forgot-password', adminController.adminForgotPassword);
+router.post('/reset-password', adminController.adminResetPassword);
 
 // Protected admin endpoints
 router.get('/overview', verifyAdminToken, adminController.getOverview);

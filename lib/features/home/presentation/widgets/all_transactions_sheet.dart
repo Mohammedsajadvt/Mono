@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/network/api_client.dart';
 import 'package:mono_app/core/storage/secure_storage_service.dart';
+import 'package:mono_app/core/widgets/shimmer_loading.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
@@ -288,8 +289,9 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
           // Transactions List
           Expanded(
             child: _isLoading
-                ? const Center(
-                    child: CircularProgressIndicator(color: AppColors.primary),
+                ? const TransactionListShimmer(
+                    count: 6,
+                    padding: EdgeInsets.fromLTRB(20, 0, 20, 24),
                   )
                 : _transactions.isEmpty
                     ? Center(

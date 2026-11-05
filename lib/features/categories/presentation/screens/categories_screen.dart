@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
+import 'package:mono_app/core/widgets/shimmer_loading.dart';
 import 'package:mono_app/features/categories/models/category_model.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
@@ -187,15 +188,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
               child: BlocBuilder<ExpenseBloc, ExpenseState>(
                 builder: (context, state) {
                   if (state is ExpenseLoading) {
-                    return const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 48),
-                      child: Center(
-                        child: CircularProgressIndicator(
-                          strokeWidth: 2.5,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    );
+                    return const CategoriesGridShimmer(count: 6);
                   }
 
                   List<CategoryModel> categories = [];

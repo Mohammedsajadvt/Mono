@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
+import 'package:mono_app/core/widgets/shimmer_loading.dart';
 import 'package:mono_app/features/auth/bloc/auth_bloc.dart';
 import 'package:mono_app/features/auth/bloc/auth_state.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
@@ -12,7 +14,7 @@ import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
 import 'package:mono_app/features/home/presentation/widgets/all_transactions_sheet.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   final VoidCallback onAddExpensePressed;
 
   const HomeScreen({
@@ -20,14 +22,50 @@ class HomeScreen extends StatelessWidget {
     required this.onAddExpensePressed,
   });
 
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
+  Timer? _clockTimer;
+  DateTime _currentTime = DateTime.now();
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    // Auto-refresh the clock every 30 seconds so greeting is always 100% accurate in real-time
+    _clockTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (mounted) {
+        setState(() => _currentTime = DateTime.now());
+      }
+    });
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() => _currentTime = DateTime.now());
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _clockTimer?.cancel();
+    super.dispose();
+  }
+
   String _getGreeting() {
-    final hour = DateTime.now().hour;
-    if (hour < 12) {
+    final hour = _currentTime.hour;
+    if (hour >= 5 && hour < 12) {
       return 'Good morning,';
-    } else if (hour < 17) {
+    } else if (hour >= 12 && hour < 17) {
       return 'Good afternoon,';
-    } else {
+    } else if (hour >= 17 && hour < 21) {
       return 'Good evening,';
+    } else {
+      return 'Good night,';
     }
   }
 
@@ -178,6 +216,10 @@ class HomeScreen extends StatelessWidget {
                   padding: const EdgeInsets.only(top: 120, left: 24, right: 24),
                   child: BlocBuilder<ExpenseBloc, ExpenseState>(
                     builder: (context, state) {
+                      if (state is ExpenseLoading) {
+                        return const BalanceCardShimmer();
+                      }
+
                       double balance = 0.00;
                       double income = 0.00;
                       double expense = 0.00;
@@ -518,12 +560,7 @@ class HomeScreen extends StatelessWidget {
                     },
                   );
                 }
-                return const Center(
-                  child: Padding(
-                    padding: EdgeInsets.all(32),
-                    child: CircularProgressIndicator(),
-                  ),
-                );
+                return const TransactionListShimmer(count: 4);
               },
             ),
 

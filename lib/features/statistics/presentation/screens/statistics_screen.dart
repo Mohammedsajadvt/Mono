@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
+import 'package:mono_app/core/widgets/shimmer_loading.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
@@ -81,6 +82,10 @@ class StatisticsScreen extends StatelessWidget {
       ),
       body: BlocBuilder<ExpenseBloc, ExpenseState>(
         builder: (context, state) {
+          if (state is ExpenseLoading) {
+            return const StatisticsShimmer();
+          }
+
           String currentPeriod = 'Month';
           TransactionType currentType = TransactionType.expense;
           List<TransactionModel> topItems = [];

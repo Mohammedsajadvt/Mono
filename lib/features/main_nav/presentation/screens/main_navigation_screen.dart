@@ -47,15 +47,26 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
   Widget build(BuildContext context) {
     final screens = [
       HomeScreen(onAddExpensePressed: _onAddExpensePressed),
-      const StatisticsScreen(),
+      StatisticsScreen(onBackToHome: () {
+        if (mounted) setState(() => _currentIndex = 0);
+      }),
       const CategoriesScreen(),
       const ProfileScreen(),
     ];
 
     return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: screens,
+      body: PopScope(
+        canPop: _currentIndex == 0,
+        onPopInvoked: (didPop) {
+          if (didPop) return;
+          if (_currentIndex != 0 && mounted) {
+            setState(() => _currentIndex = 0);
+          }
+        },
+        child: IndexedStack(
+          index: _currentIndex,
+          children: screens,
+        ),
       ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: Container(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/features/statistics/services/export_service.dart';
 
@@ -22,16 +23,30 @@ class ExportStatementSheet extends StatefulWidget {
 class _ExportStatementSheetState extends State<ExportStatementSheet> {
   final ExportService _exportService = ExportService();
 
-  String _selectedPeriod = 'monthly'; // weekly, monthly, yearly, all
+  String _selectedPeriod = 'monthly'; // monthly, last_month, last_3_months, yearly, last_year, custom, all
   String _selectedFormat = 'csv'; // csv, pdf
   final String _selectedCurrency = 'INR';
   final String _selectedType = 'all'; // all, expense, income
   bool _isLoading = false;
+  DateTimeRange? _customDateRange;
+
+  String? get _startDateStr =>
+      _selectedPeriod == 'custom' && _customDateRange != null
+          ? DateFormat('yyyy-MM-dd').format(_customDateRange!.start)
+          : null;
+
+  String? get _endDateStr =>
+      _selectedPeriod == 'custom' && _customDateRange != null
+          ? DateFormat('yyyy-MM-dd').format(_customDateRange!.end)
+          : null;
 
   final periods = [
-    {'id': 'monthly', 'label': 'Monthly', 'desc': 'Current'},
-    {'id': 'weekly', 'label': 'Weekly', 'desc': '7 Days'},
-    {'id': 'yearly', 'label': 'Yearly', 'desc': 'FY 26-27'},
+    {'id': 'monthly', 'label': 'This Month', 'desc': 'Current'},
+    {'id': 'last_month', 'label': 'Last Month', 'desc': 'Previous'},
+    {'id': 'last_3_months', 'label': 'Last 3 Mos', 'desc': 'Quarterly'},
+    {'id': 'yearly', 'label': 'This Year', 'desc': 'FY 26-27'},
+    {'id': 'last_year', 'label': 'Last Year', 'desc': 'Previous Year'},
+    {'id': 'custom', 'label': 'Custom Range', 'desc': 'Select Dates'},
     {'id': 'all', 'label': 'All Time', 'desc': 'All Records'},
   ];
 
@@ -42,6 +57,8 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
         period: _selectedPeriod,
         currency: _selectedCurrency,
         type: _selectedType,
+        startDate: _startDateStr,
+        endDate: _endDateStr,
       );
 
       final filename =
@@ -212,6 +229,8 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
         period: _selectedPeriod,
         currency: _selectedCurrency,
         type: _selectedType,
+        startDate: _startDateStr,
+        endDate: _endDateStr,
       );
 
       if (!mounted) return;
@@ -769,8 +788,7 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
               fontWeight: FontWeight.w600,
               color: color,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            softWrap: true,
           ),
           Text(
             amount,
@@ -858,22 +876,47 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
             ),
           ),
           const SizedBox(height: 8),
-          Row(
-            children: periods.map((p) {
-              final isSel = p['id'] == _selectedPeriod;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => setState(() => _selectedPeriod = p['id']!),
+          SizedBox(
+            height: 56,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: periods.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
+              itemBuilder: (context, index) {
+                final p = periods[index];
+                final isSel = p['id'] == _selectedPeriod;
+                return GestureDetector(
+                  onTap: () async {
+                    if (p['id'] == 'custom') {
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        initialDateRange: _customDateRange ??
+                            DateTimeRange(
+                              start: DateTime.now()
+                                  .subtract(const Duration(days: 30)),
+                              end: DateTime.now(),
+                            ),
+                      );
+                      if (picked != null) {
+                        setState(() {
+                          _customDateRange = picked;
+                          _selectedPeriod = 'custom';
+                        });
+                      }
+                    } else {
+                      setState(() => _selectedPeriod = p['id']!);
+                    }
+                  },
                   child: Container(
-                    height: 52,
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    padding:
-                        const EdgeInsets.symmetric(horizontal: 2, vertical: 4),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 8),
                     decoration: BoxDecoration(
                       color: isSel
                           ? AppColors.primary
                           : const Color(0xFFF4F6F6),
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(12),
                       border: Border.all(
                         color: isSel
                             ? AppColors.primary
@@ -882,26 +925,26 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                     ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
                           p['label']!,
-                          textAlign: TextAlign.center,
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            color:
-                                isSel ? Colors.white : const Color(0xFF444444),
+                            color: isSel
+                                ? Colors.white
+                                : const Color(0xFF333333),
                           ),
                         ),
                         const SizedBox(height: 2),
                         Text(
-                          p['desc']!,
-                          textAlign: TextAlign.center,
-                          maxLines: 1,
-                          overflow: TextOverflow.clip,
+                          p['id'] == 'custom' && _customDateRange != null
+                              ? '${DateFormat('d MMM').format(_customDateRange!.start)} - ${DateFormat('d MMM').format(_customDateRange!.end)}'
+                              : p['desc']!,
+                          softWrap: true,
                           style: GoogleFonts.inter(
-                            fontSize: 9,
+                            fontSize: 10,
                             fontWeight: FontWeight.w500,
                             color: isSel
                                 ? Colors.white.withOpacity(0.9)
@@ -911,10 +954,61 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                       ],
                     ),
                   ),
-                ),
-              );
-            }).toList(),
+                );
+              },
+            ),
           ),
+          if (_selectedPeriod == 'custom' && _customDateRange != null) ...[
+            const SizedBox(height: 10),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.date_range_rounded,
+                      size: 16, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Period: ${DateFormat('dd MMM yyyy').format(_customDateRange!.start)} - ${DateFormat('dd MMM yyyy').format(_customDateRange!.end)}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                      softWrap: true,
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: () async {
+                      final picked = await showDateRangePicker(
+                        context: context,
+                        firstDate: DateTime(2020),
+                        lastDate: DateTime.now().add(const Duration(days: 365)),
+                        initialDateRange: _customDateRange,
+                      );
+                      if (picked != null) {
+                        setState(() => _customDateRange = picked);
+                      }
+                    },
+                    child: Text(
+                      'Change',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
 
           const SizedBox(height: 18),
 
@@ -1128,8 +1222,7 @@ class _ExportStatementSheetState extends State<ExportStatementSheet> {
                       fontSize: 9,
                       color: const Color(0xFF777777),
                     ),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
+                    softWrap: true,
                   ),
                 ],
               ),

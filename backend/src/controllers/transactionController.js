@@ -4,7 +4,7 @@ const pool = require('../config/db');
 const getTransactions = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { type, page, limit, all } = req.query;
+    const { type, page, limit, all, startDate, endDate } = req.query;
 
     const pageNum = Math.max(1, parseInt(page, 10) || 1);
     const limitNum = all === 'true' ? 1000 : Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
@@ -16,6 +16,16 @@ const getTransactions = async (req, res) => {
     if (type && (type === 'income' || type === 'expense')) {
       baseFilter += ' AND t.type = ?';
       params.push(type);
+    }
+
+    if (startDate) {
+      baseFilter += ' AND t.transaction_date >= ?';
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      baseFilter += ' AND t.transaction_date <= ?';
+      params.push(endDate);
     }
 
     // 1. Get total count for pagination
@@ -380,13 +390,34 @@ const getStatistics = async (req, res) => {
 const exportTransactions = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { period = 'monthly', format = 'json', currency = 'INR', type = 'all' } = req.query;
+    const { period = 'monthly', format = 'json', currency = 'INR', type = 'all', startDate, endDate } = req.query;
 
     let dateCondition = '';
     const now = new Date();
     let periodLabel = '';
 
-    if (period === 'weekly') {
+    if (startDate && endDate) {
+      dateCondition = `AND t.transaction_date >= '${startDate}' AND t.transaction_date <= '${endDate}'`;
+      periodLabel = `Custom Statement (${startDate} to ${endDate})`;
+    } else if (startDate) {
+      dateCondition = `AND t.transaction_date >= '${startDate}'`;
+      periodLabel = `From ${startDate}`;
+    } else if (period === 'last_month') {
+      const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+      const prevYear = prevDate.getFullYear();
+      const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
+      const lastDayOfPrevMonth = new Date(prevYear, prevDate.getMonth() + 1, 0).getDate();
+      dateCondition = `AND t.transaction_date >= '${prevYear}-${prevMonth}-01' AND t.transaction_date <= '${prevYear}-${prevMonth}-${lastDayOfPrevMonth}'`;
+      const prevMonthName = prevDate.toLocaleString('default', { month: 'long' });
+      periodLabel = `Last Month (${prevMonthName} ${prevYear})`;
+    } else if (period === 'last_3_months') {
+      dateCondition = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 3 MONTH)';
+      periodLabel = 'Last 3 Months';
+    } else if (period === 'last_year') {
+      const lastYear = now.getFullYear() - 1;
+      dateCondition = `AND t.transaction_date >= '${lastYear}-01-01' AND t.transaction_date <= '${lastYear}-12-31'`;
+      periodLabel = `Last Year (${lastYear})`;
+    } else if (period === 'weekly') {
       dateCondition = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
       periodLabel = 'Weekly (Last 7 Days)';
     } else if (period === 'yearly') {

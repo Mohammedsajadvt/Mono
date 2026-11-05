@@ -26,6 +26,8 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
   bool _isLoading = false;
   bool _isLoadingMore = false;
   String _selectedType = 'all'; // 'all', 'expense', 'income'
+  DateTimeRange? _selectedDateRange;
+  String _dateLabel = 'All Dates';
 
   @override
   void initState() {
@@ -38,6 +40,137 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
   void dispose() {
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _applyDateFilter(DateTimeRange? range, String label) {
+    setState(() {
+      _selectedDateRange = range;
+      _dateLabel = label;
+    });
+    _fetchTransactions(page: 1, reset: true);
+  }
+
+  void _showCalendarFilterSheet() {
+    final now = DateTime.now();
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (bCtx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Filter by Date / Period',
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF222222),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: () => Navigator.of(bCtx).pop(),
+                    icon: const Icon(Icons.close, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ListTile(
+                leading: const Icon(Icons.calendar_today_outlined,
+                    color: AppColors.primary),
+                title: Text('All Dates (Clear Filter)',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                onTap: () {
+                  Navigator.of(bCtx).pop();
+                  _applyDateFilter(null, 'All Dates');
+                },
+              ),
+              ListTile(
+                leading:
+                    const Icon(Icons.today_rounded, color: AppColors.primary),
+                title: Text('Today',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text(DateFormat('dd MMM yyyy').format(now),
+                    style: GoogleFonts.inter(fontSize: 12)),
+                onTap: () {
+                  Navigator.of(bCtx).pop();
+                  final start = DateTime(now.year, now.month, now.day);
+                  final end = DateTime(now.year, now.month, now.day, 23, 59, 59);
+                  _applyDateFilter(
+                      DateTimeRange(start: start, end: end), 'Today');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.date_range_rounded,
+                    color: AppColors.primary),
+                title: Text('This Month',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text(DateFormat('MMMM yyyy').format(now),
+                    style: GoogleFonts.inter(fontSize: 12)),
+                onTap: () {
+                  Navigator.of(bCtx).pop();
+                  final start = DateTime(now.year, now.month, 1);
+                  final end = DateTime(now.year, now.month + 1, 0, 23, 59, 59);
+                  _applyDateFilter(
+                      DateTimeRange(start: start, end: end), 'This Month');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.history_rounded,
+                    color: AppColors.primary),
+                title: Text('Last Month',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text(
+                  DateFormat('MMMM yyyy')
+                      .format(DateTime(now.year, now.month - 1, 1)),
+                  style: GoogleFonts.inter(fontSize: 12),
+                ),
+                onTap: () {
+                  Navigator.of(bCtx).pop();
+                  final start = DateTime(now.year, now.month - 1, 1);
+                  final end = DateTime(now.year, now.month, 0, 23, 59, 59);
+                  _applyDateFilter(
+                      DateTimeRange(start: start, end: end), 'Last Month');
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.edit_calendar_rounded,
+                    color: AppColors.primary),
+                title: Text('Custom Date Range...',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text('Pick start & end dates',
+                    style: GoogleFonts.inter(fontSize: 12)),
+                onTap: () async {
+                  Navigator.of(bCtx).pop();
+                  final picked = await showDateRangePicker(
+                    context: context,
+                    firstDate: DateTime(2020),
+                    lastDate: DateTime.now().add(const Duration(days: 365)),
+                    initialDateRange: _selectedDateRange ??
+                        DateTimeRange(
+                          start: DateTime.now().subtract(const Duration(days: 30)),
+                          end: DateTime.now(),
+                        ),
+                  );
+                  if (picked != null) {
+                    final label =
+                        '${DateFormat('d MMM').format(picked.start)} - ${DateFormat('d MMM').format(picked.end)}';
+                    _applyDateFilter(picked, label);
+                  }
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _onScroll() {
@@ -70,6 +203,12 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
       };
       if (_selectedType != 'all') {
         queryParams['type'] = _selectedType;
+      }
+      if (_selectedDateRange != null) {
+        queryParams['startDate'] =
+            DateFormat('yyyy-MM-dd').format(_selectedDateRange!.start);
+        queryParams['endDate'] =
+            DateFormat('yyyy-MM-dd').format(_selectedDateRange!.end);
       }
 
       final res = await client.dio.get('/transactions', queryParameters: queryParams);
@@ -271,16 +410,69 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
           ),
           const SizedBox(height: 12),
 
-          // Filter Chips (All, Expense, Income)
+          // Filter Chips (All, Expense, Income) + Calendar Filter
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 24),
             child: Row(
               children: [
                 _buildFilterChip('All', 'all'),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _buildFilterChip('Expenses', 'expense'),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 _buildFilterChip('Income', 'income'),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _showCalendarFilterSheet,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: _selectedDateRange != null
+                          ? AppColors.primary
+                          : const Color(0xFFF3F4F6),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(
+                        color: _selectedDateRange != null
+                            ? AppColors.primary
+                            : Colors.grey.shade300,
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.calendar_month_rounded,
+                          size: 16,
+                          color: _selectedDateRange != null
+                              ? Colors.white
+                              : const Color(0xFF444444),
+                        ),
+                        const SizedBox(width: 4),
+                        Text(
+                          _dateLabel,
+                          style: GoogleFonts.inter(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: _selectedDateRange != null
+                                ? Colors.white
+                                : const Color(0xFF444444),
+                          ),
+                        ),
+                        if (_selectedDateRange != null) ...[
+                          const SizedBox(width: 4),
+                          GestureDetector(
+                            onTap: () => _applyDateFilter(null, 'All Dates'),
+                            child: const Icon(
+                              Icons.close,
+                              size: 14,
+                              color: Colors.white,
+                            ),
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
               ],
             ),
           ),
@@ -393,8 +585,7 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
                                             fontWeight: FontWeight.w600,
                                             color: const Color(0xFF1F2937),
                                           ),
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
+                                          softWrap: true,
                                         ),
                                         const SizedBox(height: 2),
                                         Text(
@@ -403,6 +594,7 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
                                             fontSize: 11,
                                             color: const Color(0xFF6B7280),
                                           ),
+                                          softWrap: true,
                                         ),
                                       ],
                                     ),

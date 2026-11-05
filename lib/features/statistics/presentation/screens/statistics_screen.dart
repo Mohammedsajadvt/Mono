@@ -14,7 +14,9 @@ import 'package:mono_app/features/statistics/models/chart_point.dart';
 import 'package:mono_app/features/statistics/presentation/widgets/export_statement_sheet.dart';
 
 class StatisticsScreen extends StatelessWidget {
-  const StatisticsScreen({super.key});
+  final VoidCallback? onBackToHome;
+
+  const StatisticsScreen({super.key, this.onBackToHome});
 
   List<String> _getDefaultLabels(String period) {
     final now = DateTime.now();
@@ -48,8 +50,12 @@ class StatisticsScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new,
               color: Color(0xFF222222), size: 18),
           onPressed: () {
-            if (Navigator.of(context).canPop()) {
+            if (onBackToHome != null) {
+              onBackToHome!();
+            } else if (Navigator.of(context).canPop()) {
               Navigator.of(context).pop();
+            } else {
+              Navigator.of(context).pushReplacementNamed(AppRoutes.home);
             }
           },
         ),
@@ -481,7 +487,6 @@ class StatisticsScreen extends StatelessWidget {
                 children: [
                   Text(
                     item.title,
-                    maxLines: 2,
                     softWrap: true,
                     style: GoogleFonts.inter(
                       fontSize: 15,
@@ -597,7 +602,6 @@ class StatisticsScreen extends StatelessWidget {
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF222222),
                           ),
-                          maxLines: 2,
                           softWrap: true,
                         ),
                         Text(

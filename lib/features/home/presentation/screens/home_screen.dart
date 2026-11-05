@@ -645,7 +645,6 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                 children: [
                   Text(
                     item.title,
-                    maxLines: 2,
                     softWrap: true,
                     style: GoogleFonts.inter(
                       fontSize: 16,

@@ -122,16 +122,22 @@ class ExportService {
     String period = 'monthly',
     String currency = 'INR',
     String type = 'all',
+    String? startDate,
+    String? endDate,
   }) async {
     try {
+      final qp = <String, dynamic>{
+        'period': period,
+        'currency': currency,
+        'type': type,
+        'format': 'json',
+      };
+      if (startDate != null && startDate.isNotEmpty) qp['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) qp['endDate'] = endDate;
+
       final response = await _apiClient.dio.get(
         '/transactions/export',
-        queryParameters: {
-          'period': period,
-          'currency': currency,
-          'type': type,
-          'format': 'json',
-        },
+        queryParameters: qp,
       );
 
       if (response.data != null && response.data['success'] == true) {
@@ -148,16 +154,22 @@ class ExportService {
     String period = 'monthly',
     String currency = 'INR',
     String type = 'all',
+    String? startDate,
+    String? endDate,
   }) async {
     try {
+      final qp = <String, dynamic>{
+        'period': period,
+        'currency': currency,
+        'type': type,
+        'format': 'csv',
+      };
+      if (startDate != null && startDate.isNotEmpty) qp['startDate'] = startDate;
+      if (endDate != null && endDate.isNotEmpty) qp['endDate'] = endDate;
+
       final response = await _apiClient.dio.get(
         '/transactions/export',
-        queryParameters: {
-          'period': period,
-          'currency': currency,
-          'type': type,
-          'format': 'csv',
-        },
+        queryParameters: qp,
         options: Options(responseType: ResponseType.plain),
       );
       if (response.statusCode == 200 && response.data != null) {

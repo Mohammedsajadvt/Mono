@@ -3,7 +3,7 @@ import { Wallet, Lock, UserCheck, ArrowRight, ShieldCheck } from 'lucide-react';
 import { API_BASE, setAdminToken, setAdminUser } from '../api';
 
 export default function LoginView({ onLoginSuccess }) {
-  const [username, setUsername] = useState('Administrator');
+  const [username, setUsername] = useState('admin');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -23,8 +23,8 @@ export default function LoginView({ onLoginSuccess }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setAdminToken(data.token);
-        setAdminUser(username || 'Administrator');
-        onLoginSuccess(username);
+        setAdminUser(username || 'admin');
+        onLoginSuccess(username || 'admin');
       } else {
         setError(data.message || 'Invalid administrator password.');
       }
@@ -68,7 +68,7 @@ export default function LoginView({ onLoginSuccess }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password (default: admin demo)"
+              placeholder="Enter password (default: demo)"
               required
               autoFocus
             />

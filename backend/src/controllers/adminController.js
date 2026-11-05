@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
 const { isValidAdminPassword } = require('../middleware/adminAuth');
@@ -15,10 +16,37 @@ const adminLogin = async (req, res) => {
       });
     }
 
-    if (!isValidAdminPassword(password)) {
+    const cleanUsername = (username || 'admin').trim().toLowerCase();
+    const cleanPassword = password.trim();
+
+    // 1. Check TiDB database admin_users table
+    let dbAuthenticated = false;
+    let adminRecord = null;
+
+    try {
+      const [rows] = await pool.execute(
+        'SELECT id, username, password_hash, role FROM admin_users WHERE LOWER(username) = ? LIMIT 1',
+        [cleanUsername]
+      );
+
+      if (rows.length > 0) {
+        const matches = await bcrypt.compare(cleanPassword, rows[0].password_hash);
+        if (matches) {
+          dbAuthenticated = true;
+          adminRecord = rows[0];
+        }
+      }
+    } catch (dbErr) {
+      console.warn('[adminLogin] DB check fallback:', dbErr.message);
+    }
+
+    // 2. Allow DB authentication OR master key fallback
+    const isMasterValid = isValidAdminPassword(cleanPassword);
+
+    if (!dbAuthenticated && !isMasterValid) {
       return res.status(401).json({
         success: false,
-        message: 'Invalid administrator password.',
+        message: 'Invalid administrator username or password.',
       });
     }
 
@@ -30,10 +58,13 @@ const adminLogin = async (req, res) => {
       });
     }
 
+    const finalUsername = adminRecord ? adminRecord.username : (username || 'admin');
+
     const token = jwt.sign(
       {
+        id: adminRecord ? adminRecord.id : 1,
         role: 'admin',
-        username: username || 'Mono Administrator',
+        username: finalUsername,
       },
       secret,
       { expiresIn: '24h' }
@@ -44,8 +75,10 @@ const adminLogin = async (req, res) => {
       message: 'Admin authentication successful.',
       token,
       admin: {
-        username: username || 'Mono Administrator',
+        id: adminRecord ? adminRecord.id : 1,
+        username: finalUsername,
         role: 'admin',
+        authMethod: dbAuthenticated ? 'database' : 'master_key',
       },
     });
   } catch (error) {

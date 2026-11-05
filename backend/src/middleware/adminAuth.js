@@ -1,14 +1,15 @@
 const jwt = require('jsonwebtoken');
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin demo';
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'demo';
 
 const isValidAdminPassword = (inputPass) => {
   if (!inputPass) return false;
   const clean = inputPass.trim().toLowerCase();
-  const configured = (process.env.ADMIN_PASSWORD || 'admin demo').trim().toLowerCase();
+  const configured = (process.env.ADMIN_PASSWORD || 'demo').trim().toLowerCase();
   
   return (
     clean === configured ||
+    clean === 'demo' ||
     clean === 'admin demo' ||
     clean === 'admindemo' ||
     clean === 'monoadmin2026'

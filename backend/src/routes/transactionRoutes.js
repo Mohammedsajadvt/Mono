@@ -8,6 +8,7 @@ router.use(verifyToken);
 
 router.get('/', transactionController.getTransactions);
 router.post('/', transactionController.createTransaction);
+router.put('/:id', transactionController.updateTransaction);
 router.get('/dashboard', transactionController.getDashboard);
 router.get('/statistics', transactionController.getStatistics);
 router.get('/export', transactionController.exportTransactions);

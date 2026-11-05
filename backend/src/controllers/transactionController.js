@@ -576,6 +576,112 @@ const exportTransactions = async (req, res) => {
   }
 };
 
+// PUT /api/transactions/:id
+const updateTransaction = async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const txId = req.params.id;
+    const { title, category_id, category, amount, type, transaction_date, invoice_url, notes } = req.body;
+
+    // Check ownership
+    const [existing] = await pool.execute(
+      'SELECT id, category_id, type FROM transactions WHERE id = ? AND user_id = ?',
+      [txId, userId]
+    );
+
+    if (existing.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: 'Transaction not found or unauthorized.',
+      });
+    }
+
+    let numericAmount;
+    if (amount !== undefined && amount !== null) {
+      numericAmount = parseFloat(amount);
+      if (isNaN(numericAmount) || numericAmount <= 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Amount must be a positive number.',
+        });
+      }
+    }
+
+    let resolvedCategoryId = category_id !== undefined ? category_id : null;
+    if (!resolvedCategoryId && category) {
+      const [cats] = await pool.execute(
+        'SELECT id FROM categories WHERE name = ? AND user_id = ? LIMIT 1',
+        [category, userId]
+      );
+      if (cats.length > 0) {
+        resolvedCategoryId = cats[0].id;
+      }
+    }
+
+    if (resolvedCategoryId) {
+      const [catCheck] = await pool.execute(
+        'SELECT id FROM categories WHERE id = ? AND user_id = ? LIMIT 1',
+        [resolvedCategoryId, userId]
+      );
+      if (catCheck.length === 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid category. Category does not belong to your account.',
+        });
+      }
+    }
+
+    const txType = type ? (type.toLowerCase() === 'income' ? 'income' : 'expense') : null;
+
+    await pool.execute(
+      `UPDATE transactions SET
+         title = COALESCE(?, title),
+         amount = COALESCE(?, amount),
+         category_id = COALESCE(?, category_id),
+         type = COALESCE(?, type),
+         transaction_date = COALESCE(?, transaction_date),
+         invoice_url = COALESCE(?, invoice_url),
+         notes = COALESCE(?, notes),
+         updated_at = NOW()
+       WHERE id = ? AND user_id = ?`,
+      [
+        title || null,
+        numericAmount !== undefined ? numericAmount : null,
+        resolvedCategoryId || null,
+        txType || null,
+        transaction_date || null,
+        invoice_url || null,
+        notes || null,
+        txId,
+        userId,
+      ]
+    );
+
+    const [updated] = await pool.execute(
+      `SELECT t.id, t.user_id, t.category_id, t.title, t.type, t.amount, 
+              DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
+              t.invoice_url, t.notes, t.created_at, t.updated_at,
+              c.name as category_name, c.icon as category_icon, c.color as category_color
+       FROM transactions t
+       LEFT JOIN categories c ON t.category_id = c.id
+       WHERE t.id = ? AND t.user_id = ?`,
+      [txId, userId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Transaction updated successfully.',
+      transaction: updated[0],
+    });
+  } catch (error) {
+    console.error('[TransactionController.updateTransaction] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update transaction.',
+    });
+  }
+};
+
 // DELETE /api/transactions/:id
 const deleteTransaction = async (req, res) => {
   try {
@@ -611,6 +717,7 @@ const deleteTransaction = async (req, res) => {
 module.exports = {
   getTransactions,
   createTransaction,
+  updateTransaction,
   getDashboard,
   getStatistics,
   exportTransactions,

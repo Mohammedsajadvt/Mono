@@ -6,6 +6,7 @@ import 'package:intl/intl.dart' hide TextDirection;
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
 import 'package:mono_app/core/widgets/shimmer_loading.dart';
+import 'package:mono_app/features/add_expense/presentation/screens/add_expense_screen.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
@@ -450,10 +451,9 @@ class StatisticsScreen extends StatelessWidget {
       }
     }
 
-    return InkWell(
-      onTap: () => _confirmDeleteTransaction(context, item),
-      onLongPress: () => _confirmDeleteTransaction(context, item),
-      borderRadius: BorderRadius.circular(16),
+    return GestureDetector(
+      onTap: () => _showTransactionActions(context, item),
+      behavior: HitTestBehavior.opaque,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         decoration: BoxDecoration(
@@ -516,6 +516,84 @@ class StatisticsScreen extends StatelessWidget {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+
+  void _showTransactionActions(BuildContext context, TransactionModel item) {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade300,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const SizedBox(height: 16),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppColors.primary.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.edit_rounded,
+                      color: AppColors.primary, size: 22),
+                ),
+                title: Text('Edit Transaction',
+                    style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                subtitle: Text('Change title, amount, category or date',
+                    style: GoogleFonts.inter(fontSize: 12)),
+                onTap: () async {
+                  Navigator.of(ctx).pop();
+                  await Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) =>
+                          AddExpenseScreen(initialTransaction: item),
+                      fullscreenDialog: true,
+                    ),
+                  );
+                  if (context.mounted) {
+                    context.read<ExpenseBloc>().add(LoadExpensesEvent());
+                  }
+                },
+              ),
+              const Divider(height: 12),
+              ListTile(
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFFEE2E2),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(Icons.delete_outline_rounded,
+                      color: Color(0xFFDC2626), size: 22),
+                ),
+                title: Text('Delete Transaction',
+                    style: GoogleFonts.inter(
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFFDC2626))),
+                subtitle: Text('Permanently remove this transaction',
+                    style: GoogleFonts.inter(fontSize: 12)),
+                onTap: () {
+                  Navigator.of(ctx).pop();
+                  _confirmDeleteTransaction(context, item);
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

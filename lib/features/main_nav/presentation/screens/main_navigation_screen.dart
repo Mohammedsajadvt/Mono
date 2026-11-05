@@ -157,7 +157,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
     final isSelected = _currentIndex == index;
     final color = isSelected ? AppColors.primary : const Color(0xFFAAAAAA);
 
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         if (_currentIndex != index) {
           setState(() {
@@ -165,7 +165,7 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
           });
         }
       },
-      borderRadius: BorderRadius.circular(16),
+      behavior: HitTestBehavior.opaque,
       child: Center(
         child: Icon(
           icon,

@@ -65,6 +65,15 @@ class UpdateCategoryEvent extends ExpenseEvent {
   List<Object?> get props => [category];
 }
 
+class UpdateTransactionEvent extends ExpenseEvent {
+  final TransactionModel transaction;
+
+  const UpdateTransactionEvent(this.transaction);
+
+  @override
+  List<Object?> get props => [transaction];
+}
+
 class DeleteTransactionEvent extends ExpenseEvent {
   final String transactionId;
 

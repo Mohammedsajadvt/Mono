@@ -318,11 +318,10 @@ class ProfileScreen extends StatelessWidget {
                               'Mono v${AppUpdateService.currentAppVersion} (Production)',
                         ),
                         const Divider(height: 1, indent: 52),
-                        InkWell(
+                        GestureDetector(
                           onTap: () => AppUpdateService.checkUpdate(context,
                               silent: false),
-                          borderRadius: const BorderRadius.vertical(
-                              bottom: Radius.circular(16)),
+                          behavior: HitTestBehavior.opaque,
                           child: _buildInfoRow(
                             icon: Icons.system_update_rounded,
                             label: 'Check for Updates',

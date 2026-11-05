@@ -11,18 +11,39 @@ import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
 
 class AddExpenseScreen extends StatefulWidget {
-  const AddExpenseScreen({super.key});
+  final TransactionModel? initialTransaction;
+
+  const AddExpenseScreen({super.key, this.initialTransaction});
 
   @override
   State<AddExpenseScreen> createState() => _AddExpenseScreenState();
 }
 
 class _AddExpenseScreenState extends State<AddExpenseScreen> {
-  bool _isIncome = false;
+  late bool _isIncome;
   String? _selectedCategory;
-  String _amount = '0.00';
-  DateTime _selectedDate = DateTime.now();
-  final TextEditingController _titleController = TextEditingController();
+  late String _amount;
+  late DateTime _selectedDate;
+  late final TextEditingController _titleController;
+
+  @override
+  void initState() {
+    super.initState();
+    final init = widget.initialTransaction;
+    if (init != null) {
+      _isIncome = init.isIncome;
+      _selectedCategory = init.category;
+      _amount = init.amount.toStringAsFixed(2);
+      _selectedDate = init.date;
+      _titleController = TextEditingController(text: init.title);
+    } else {
+      _isIncome = false;
+      _selectedCategory = null;
+      _amount = '0.00';
+      _selectedDate = DateTime.now();
+      _titleController = TextEditingController();
+    }
+  }
 
   @override
   void dispose() {
@@ -96,8 +117,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
     final enteredTitle = _titleController.text.trim();
     final txTitle = enteredTitle.isNotEmpty ? enteredTitle : catName;
 
+    final isEditing = widget.initialTransaction != null;
+
     final transaction = TransactionModel(
-      id: 'tx_${DateTime.now().millisecondsSinceEpoch}',
+      id: isEditing
+          ? widget.initialTransaction!.id
+          : 'tx_${DateTime.now().millisecondsSinceEpoch}',
       title: txTitle,
       category: catName,
       amount: parsedAmount,
@@ -106,13 +131,20 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
       iconName: catName.toLowerCase(),
     );
 
-    context.read<ExpenseBloc>().add(AddExpenseEvent(transaction));
+    if (isEditing) {
+      context.read<ExpenseBloc>().add(UpdateTransactionEvent(transaction));
+    } else {
+      context.read<ExpenseBloc>().add(AddExpenseEvent(transaction));
+    }
 
     final prefix = _isIncome ? '+ ₹' : '- ₹';
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(
-            'Added ${_isIncome ? "Income" : "Expense"}: $prefix${parsedAmount.toStringAsFixed(2)} for ${transaction.title}'),
+          isEditing
+              ? 'Updated Transaction: ${transaction.title} ($prefix${parsedAmount.toStringAsFixed(2)})'
+              : 'Added ${_isIncome ? "Income" : "Expense"}: $prefix${parsedAmount.toStringAsFixed(2)} for ${transaction.title}',
+        ),
         backgroundColor:
             _isIncome ? const Color(0xFF16A34A) : AppColors.primary,
         behavior: SnackBarBehavior.floating,
@@ -209,7 +241,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                               color: Colors.white, size: 20),
                         ),
                         Text(
-                          _isIncome ? 'Add Income' : 'Add Expense',
+                          widget.initialTransaction != null
+                              ? 'Edit Transaction'
+                              : (_isIncome ? 'Add Income' : 'Add Expense'),
                           style: GoogleFonts.inter(
                             fontSize: 18,
                             fontWeight: FontWeight.w700,
@@ -756,7 +790,9 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                       ),
                     ),
                     child: Text(
-                      _isIncome ? 'Save Income' : 'Save Expense',
+                      widget.initialTransaction != null
+                          ? 'Save Changes'
+                          : (_isIncome ? 'Save Income' : 'Save Expense'),
                       style: GoogleFonts.inter(
                         fontSize: 16,
                         fontWeight: FontWeight.w700,
@@ -811,16 +847,16 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
   }
 
   Widget _buildKeypadButton({required Widget child, required VoidCallback onTap}) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(10),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: SizedBox(
-          height: 48,
-          child: Center(child: child),
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(10),
         ),
+        height: 48,
+        child: Center(child: child),
       ),
     );
   }

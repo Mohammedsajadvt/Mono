@@ -6,6 +6,7 @@ import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/network/api_client.dart';
 import 'package:mono_app/core/storage/secure_storage_service.dart';
 import 'package:mono_app/core/widgets/shimmer_loading.dart';
+import 'package:mono_app/features/add_expense/presentation/screens/add_expense_screen.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
@@ -255,6 +256,19 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
         });
       }
     }
+  }
+
+  Future<void> _editTransaction(
+      BuildContext context, TransactionModel item) async {
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AddExpenseScreen(initialTransaction: item),
+        fullscreenDialog: true,
+      ),
+    );
+    if (!mounted) return;
+    _fetchTransactions(page: 1, reset: true);
+    this.context.read<ExpenseBloc>().add(LoadExpensesEvent());
   }
 
   void _confirmDelete(BuildContext context, TransactionModel item) {
@@ -616,6 +630,15 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
                                   ),
                                   const SizedBox(width: 8),
                                   IconButton(
+                                    icon: const Icon(Icons.edit_outlined,
+                                        size: 19, color: AppColors.primary),
+                                    onPressed: () =>
+                                        _editTransaction(context, item),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  IconButton(
                                     icon: const Icon(Icons.delete_outline_rounded,
                                         size: 20, color: Color(0xFFEF4444)),
                                     onPressed: () =>
@@ -637,7 +660,7 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
 
   Widget _buildFilterChip(String label, String value) {
     final isSelected = _selectedType == value;
-    return InkWell(
+    return GestureDetector(
       onTap: () {
         if (_selectedType != value) {
           setState(() {
@@ -646,7 +669,7 @@ class _AllTransactionsSheetState extends State<AllTransactionsSheet> {
           _fetchTransactions(page: 1, reset: true);
         }
       },
-      borderRadius: BorderRadius.circular(20),
+      behavior: HitTestBehavior.opaque,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),

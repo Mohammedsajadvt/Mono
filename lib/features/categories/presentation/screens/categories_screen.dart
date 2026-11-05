@@ -26,24 +26,40 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     super.dispose();
   }
 
-  void _showAddCategorySheet(BuildContext context) {
+  void _showAddCategorySheet(BuildContext context,
+      {CategoryModel? categoryToEdit}) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (bottomSheetContext) => _CreateCategorySheet(
-        onSave: (newCategory) {
-          context.read<ExpenseBloc>().add(AddCategoryEvent(newCategory));
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Created "${newCategory.name}" successfully'),
-              backgroundColor: AppColors.primary,
-              behavior: SnackBarBehavior.floating,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
+        categoryToEdit: categoryToEdit,
+        onSave: (cat) {
+          if (categoryToEdit != null) {
+            context.read<ExpenseBloc>().add(UpdateCategoryEvent(cat));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Updated "${cat.name}" successfully'),
+                backgroundColor: AppColors.primary,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-            ),
-          );
+            );
+          } else {
+            context.read<ExpenseBloc>().add(AddCategoryEvent(cat));
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Created "${cat.name}" successfully'),
+                backgroundColor: AppColors.primary,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            );
+          }
         },
       ),
     );
@@ -291,63 +307,76 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
 }
 
   Widget _buildCategoryCard(BuildContext context, CategoryModel category) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withOpacity(0.03),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-      child: Row(
-        children: [
-          // Icon Container
-          Container(
-            width: 44,
-            height: 44,
-            decoration: BoxDecoration(
-              color: category.color.withOpacity(0.14),
-              borderRadius: BorderRadius.circular(12),
+    return GestureDetector(
+      onTap: () =>
+          _showAddCategorySheet(context, categoryToEdit: category),
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.03),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
             ),
-            child: Icon(
-              category.icon,
-              color: category.color,
-              size: 22,
+          ],
+        ),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            // Icon Container
+            Container(
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: category.color.withOpacity(0.14),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                category.icon,
+                color: category.color,
+                size: 22,
+              ),
             ),
-          ),
-          const SizedBox(width: 14),
+            const SizedBox(width: 14),
 
-          // Name and Label
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  category.name,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w600,
-                    color: const Color(0xFF222222),
+            // Name and Label
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    category.name,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF222222),
+                    ),
+                    softWrap: true,
                   ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Expense item',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    color: const Color(0xFF888888),
+                  const SizedBox(height: 2),
+                  Text(
+                    'Expense item',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      color: const Color(0xFF888888),
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // Delete Button
+            // Edit Button
+            IconButton(
+              icon: const Icon(Icons.edit_outlined,
+                  color: AppColors.primary, size: 20),
+              onPressed: () =>
+                  _showAddCategorySheet(context, categoryToEdit: category),
+            ),
+
+            // Delete Button
           IconButton(
             icon: Icon(Icons.delete_outline_rounded,
                 color: Colors.grey.shade400, size: 20),
@@ -408,21 +437,23 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           ),
         ],
       ),
+    ),
     );
   }
 }
 
 class _CreateCategorySheet extends StatefulWidget {
   final ValueChanged<CategoryModel> onSave;
+  final CategoryModel? categoryToEdit;
 
-  const _CreateCategorySheet({required this.onSave});
+  const _CreateCategorySheet({required this.onSave, this.categoryToEdit});
 
   @override
   State<_CreateCategorySheet> createState() => _CreateCategorySheetState();
 }
 
 class _CreateCategorySheetState extends State<_CreateCategorySheet> {
-  final _nameController = TextEditingController();
+  late final TextEditingController _nameController;
   int _selectedIconIndex = 0;
   int _selectedColorIndex = 0;
 
@@ -457,6 +488,21 @@ class _CreateCategorySheetState extends State<_CreateCategorySheet> {
   ];
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.categoryToEdit != null) {
+      _nameController =
+          TextEditingController(text: widget.categoryToEdit!.name);
+      final iconIdx = _icons.indexOf(widget.categoryToEdit!.icon);
+      if (iconIdx != -1) _selectedIconIndex = iconIdx;
+      final colorIdx = _colors.indexOf(widget.categoryToEdit!.color);
+      if (colorIdx != -1) _selectedColorIndex = colorIdx;
+    } else {
+      _nameController = TextEditingController();
+    }
+  }
+
+  @override
   void dispose() {
     _nameController.dispose();
     super.dispose();
@@ -475,14 +521,20 @@ class _CreateCategorySheetState extends State<_CreateCategorySheet> {
       return;
     }
 
-    final newCategory = CategoryModel(
-      id: 'cat_${DateTime.now().millisecondsSinceEpoch}',
+    final catId = widget.categoryToEdit != null
+        ? widget.categoryToEdit!.id
+        : 'cat_${DateTime.now().millisecondsSinceEpoch}';
+
+    final category = CategoryModel(
+      id: catId,
       name: name,
       icon: _icons[_selectedIconIndex],
       color: _colors[_selectedColorIndex],
+      type: widget.categoryToEdit?.type ?? 'both',
+      status: widget.categoryToEdit?.status ?? 'active',
     );
 
-    widget.onSave(newCategory);
+    widget.onSave(category);
     Navigator.of(context).pop();
   }
 
@@ -519,7 +571,9 @@ class _CreateCategorySheetState extends State<_CreateCategorySheet> {
 
             // Header Title
             Text(
-              'Create Expense Name',
+              widget.categoryToEdit != null
+                  ? 'Edit Category'
+                  : 'Create Expense Name',
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
@@ -706,7 +760,9 @@ class _CreateCategorySheetState extends State<_CreateCategorySheet> {
                     ),
                   ),
                   child: Text(
-                    'Save Category',
+                    widget.categoryToEdit != null
+                        ? 'Save Changes'
+                        : 'Save Category',
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,

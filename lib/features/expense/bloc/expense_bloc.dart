@@ -15,9 +15,11 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
   ExpenseBloc({this.apiClient}) : super(ExpenseInitial()) {
     on<LoadExpensesEvent>(_onLoadExpenses);
     on<AddExpenseEvent>(_onAddExpense);
+    on<UpdateTransactionEvent>(_onUpdateTransaction);
     on<ChangeStatisticPeriodEvent>(_onChangeStatisticPeriod);
     on<ChangeStatisticTypeEvent>(_onChangeStatisticType);
     on<AddCategoryEvent>(_onAddCategory);
+    on<UpdateCategoryEvent>(_onUpdateCategory);
     on<DeleteCategoryEvent>(_onDeleteCategory);
     on<DeleteTransactionEvent>(_onDeleteTransaction);
     on<ResetExpenseEvent>(_onResetExpense);
@@ -280,6 +282,51 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
     }
   }
 
+  Future<void> _onUpdateTransaction(
+    UpdateTransactionEvent event,
+    Emitter<ExpenseState> emit,
+  ) async {
+    if (state is ExpenseLoaded) {
+      final current = state as ExpenseLoaded;
+      final updatedList = current.transactions.map((t) {
+        return t.id == event.transaction.id ? event.transaction : t;
+      }).toList();
+
+      double income = 0;
+      double expense = 0;
+      for (final tx in updatedList) {
+        if (tx.isIncome) {
+          income += tx.amount;
+        } else {
+          expense += tx.amount;
+        }
+      }
+
+      emit(current.copyWith(
+        totalBalance: income - expense,
+        totalIncome: income,
+        totalExpense: expense,
+        transactions: updatedList,
+      ));
+
+      if (apiClient != null) {
+        try {
+          await apiClient!.dio.put('/transactions/${event.transaction.id}', data: {
+            'title': event.transaction.title,
+            'category': event.transaction.category,
+            'amount': event.transaction.amount,
+            'type': event.transaction.isIncome ? 'income' : 'expense',
+            'transaction_date':
+                event.transaction.date.toIso8601String().substring(0, 10),
+          });
+          _refreshStatisticsSilently(emit);
+        } catch (e) {
+          debugPrint('[ExpenseBloc] Update transaction API error: $e');
+        }
+      }
+    }
+  }
+
   Future<void> _refreshStatisticsSilently(Emitter<ExpenseState> emit) async {
     if (state is! ExpenseLoaded || apiClient == null) return;
     final current = state as ExpenseLoaded;
@@ -486,6 +533,34 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
           await apiClient!.dio.delete('/categories/${event.categoryId}');
         } catch (e) {
           debugPrint('[ExpenseBloc] Delete category API error: $e');
+        }
+      }
+    }
+  }
+
+  Future<void> _onUpdateCategory(
+    UpdateCategoryEvent event,
+    Emitter<ExpenseState> emit,
+  ) async {
+    if (state is ExpenseLoaded) {
+      final current = state as ExpenseLoaded;
+      final updatedCategories = current.categories.map((c) {
+        return c.id == event.category.id ? event.category : c;
+      }).toList();
+
+      emit(current.copyWith(categories: updatedCategories));
+
+      if (apiClient != null) {
+        try {
+          await apiClient!.dio.put('/categories/${event.category.id}', data: {
+            'name': event.category.name,
+            'icon': 'category_rounded',
+            'color':
+                '#${event.category.color.value.toRadixString(16).padLeft(8, '0').substring(2)}',
+            'type': event.category.type,
+          });
+        } catch (e) {
+          debugPrint('[ExpenseBloc] Update category API error: $e');
         }
       }
     }

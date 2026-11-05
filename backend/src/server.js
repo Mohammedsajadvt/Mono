@@ -23,6 +23,7 @@ const transactionRoutes = require('./routes/transactionRoutes');
 const aiRoutes = require('./routes/aiRoutes');
 const appRoutes = require('./routes/appRoutes');
 const adminRoutes = require('./routes/adminRoutes');
+const receiptRoutes = require('./routes/receiptRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -43,6 +44,9 @@ app.use(cors());
 app.use(express.json({ limit: '2mb' }));
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(morgan('dev'));
+
+// Static files for Uploads (Receipt images & attachments)
+app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
 // Static files for Admin Web Dashboard
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
@@ -78,6 +82,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/categories', categoryRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/ai', aiRoutes);
+app.use('/api/receipts', receiptRoutes);
 app.use('/api/app', appRoutes);
 app.use('/api/admin', adminRoutes);
 

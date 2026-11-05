@@ -86,7 +86,34 @@ CREATE TABLE `send_again_contacts` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ==========================================================
--- 6. Initial Seed Data
+-- 6. Admin Users Table (Enterprise Console)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS `admin_users` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `username` VARCHAR(80) NOT NULL UNIQUE,
+  `email` VARCHAR(150) NULL,
+  `password_hash` VARCHAR(255) NOT NULL,
+  `role` VARCHAR(50) NOT NULL DEFAULT 'admin',
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  UNIQUE KEY `uq_admin_email` (`email`),
+  INDEX `idx_admin_users_username` (`username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==========================================================
+-- 7. Password Resets Table (Secure 6-digit Email OTPs)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS `password_resets` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `email` VARCHAR(150) NOT NULL,
+  `otp_code` VARCHAR(10) NOT NULL,
+  `expires_at` DATETIME NOT NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  INDEX `idx_password_resets_email` (`email`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ==========================================================
+-- 8. Initial Seed Data
 -- ==========================================================
 
 -- Insert Demo User (Password is 'password123' hashed with bcrypt)
@@ -120,3 +147,34 @@ INSERT INTO `send_again_contacts` (`user_id`, `name`, `avatar_url`) VALUES
 (1, 'David', NULL),
 (1, 'Emily', NULL);
 
+
+-- ==========================================================
+-- 9. Receipts Table (AI-Powered Receipt & Bill Scanner)
+-- ==========================================================
+CREATE TABLE IF NOT EXISTS `receipts` (
+  `id` INT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  `user_id` INT UNSIGNED NOT NULL,
+  `merchant` VARCHAR(150) NULL,
+  `receipt_date` DATE NULL,
+  `total_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  `currency` VARCHAR(10) NOT NULL DEFAULT 'INR',
+  `tax_amount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  `discount` DECIMAL(12, 2) NOT NULL DEFAULT 0.00,
+  `payment_method` VARCHAR(50) NULL,
+  `suggested_category` VARCHAR(100) NULL,
+  `category_id` INT UNSIGNED NULL,
+  `image_url` VARCHAR(255) NULL,
+  `image_hash` VARCHAR(64) NULL,
+  `confidence` DECIMAL(4, 2) NOT NULL DEFAULT 0.90,
+  `raw_items` JSON NULL,
+  `status` ENUM('pending', 'confirmed', 'discarded') NOT NULL DEFAULT 'pending',
+  `transaction_id` INT UNSIGNED NULL,
+  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  INDEX `idx_receipts_user` (`user_id`),
+  INDEX `idx_receipts_status` (`status`),
+  INDEX `idx_receipts_hash` (`user_id`, `image_hash`),
+  FOREIGN KEY (`user_id`) REFERENCES `users`(`id`) ON DELETE CASCADE,
+  FOREIGN KEY (`category_id`) REFERENCES `categories`(`id`) ON DELETE SET NULL,
+  FOREIGN KEY (`transaction_id`) REFERENCES `transactions`(`id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

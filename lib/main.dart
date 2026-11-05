@@ -9,6 +9,7 @@ import 'package:mono_app/features/auth/bloc/auth_event.dart';
 import 'package:mono_app/features/auth/bloc/auth_state.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -40,6 +41,9 @@ class MonoApp extends StatelessWidget {
         BlocProvider<ExpenseBloc>(
           create: (context) =>
               ExpenseBloc(apiClient: client)..add(LoadExpensesEvent()),
+        ),
+        BlocProvider<ReceiptBloc>(
+          create: (context) => ReceiptBloc(apiClient: client),
         ),
       ],
       child: BlocListener<AuthBloc, AuthState>(

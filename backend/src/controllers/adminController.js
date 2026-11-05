@@ -31,12 +31,17 @@ const ensureAdminTables = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
     `);
 
-    // 2. Add email column if table existed without it
+    // 2. Add email column if table existed without it (TiDB Cloud compliant 2-step migration)
     try {
       const [emailCol] = await pool.query("SHOW COLUMNS FROM admin_users LIKE 'email'");
       if (emailCol.length === 0) {
-        await pool.query("ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) NULL UNIQUE");
-        console.log('[ensureAdminTables] Added email column to admin_users.');
+        await pool.query("ALTER TABLE admin_users ADD COLUMN email VARCHAR(150) NULL");
+        try {
+          await pool.query("ALTER TABLE admin_users ADD UNIQUE INDEX idx_admin_users_email (email)");
+        } catch (idxErr) {
+          console.warn('[ensureAdminTables] Unique index idx_admin_users_email note:', idxErr.message);
+        }
+        console.log('[ensureAdminTables] Successfully added email column to admin_users.');
       }
     } catch (colErr) {
       console.warn('[ensureAdminTables] email column check:', colErr.message);

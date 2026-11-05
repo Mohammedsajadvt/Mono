@@ -9,6 +9,7 @@ import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
+import 'package:mono_app/features/receipt_scanner/presentation/widgets/receipt_scanner_sheet.dart';
 
 class AddExpenseScreen extends StatefulWidget {
   final TransactionModel? initialTransaction;
@@ -250,7 +251,12 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             color: Colors.white,
                           ),
                         ),
-                        const SizedBox(width: 48),
+                        IconButton(
+                          tooltip: 'Scan Receipt / Bill',
+                          onPressed: () => ReceiptScannerSheet.show(context),
+                          icon: const Icon(Icons.document_scanner_rounded,
+                              color: Colors.white, size: 22),
+                        ),
                       ],
                     ),
                   ),
@@ -398,6 +404,87 @@ class _AddExpenseScreenState extends State<AddExpenseScreen> {
                             ],
                           ),
                         ),
+
+                        // Quick AI Receipt Scanner Action for Expenses
+                        if (!_isIncome && widget.initialTransaction == null) ...[
+                          const SizedBox(height: 14),
+                          InkWell(
+                            onTap: () => ReceiptScannerSheet.show(context),
+                            borderRadius: BorderRadius.circular(14),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 14, vertical: 10),
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: [
+                                    const Color(0xFF438883).withOpacity(0.08),
+                                    const Color(0xFF6366F1).withOpacity(0.06),
+                                  ],
+                                ),
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(
+                                  color: const Color(0xFF438883).withOpacity(0.35),
+                                ),
+                              ),
+                              child: Row(
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(7),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF438883),
+                                      borderRadius: BorderRadius.circular(10),
+                                    ),
+                                    child: const Icon(
+                                      Icons.document_scanner_rounded,
+                                      size: 16,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          'Scan Receipt with Vision AI',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w700,
+                                            color: const Color(0xFF1E293B),
+                                          ),
+                                        ),
+                                        Text(
+                                          'Auto-detect merchant, items, date & amount',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 11,
+                                            color: const Color(0xFF64748B),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 8, vertical: 4),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF438883),
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                    child: Text(
+                                      'SCAN',
+                                      style: GoogleFonts.inter(
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w800,
+                                        color: Colors.white,
+                                        letterSpacing: 0.5,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
 
                         // Quick Salary & Credits chips for Income
                         if (_isIncome) ...[

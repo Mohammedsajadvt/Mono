@@ -6,6 +6,7 @@ import 'package:mono_app/features/auth/presentation/screens/signup_screen.dart';
 import 'package:mono_app/features/main_nav/presentation/screens/main_navigation_screen.dart';
 import 'package:mono_app/features/add_expense/presentation/screens/add_expense_screen.dart';
 import 'package:mono_app/features/ai_assistant/presentation/screens/ai_assistant_screen.dart';
+import 'package:mono_app/features/receipt_scanner/presentation/screens/receipt_preview_screen.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -19,6 +20,7 @@ class AppRoutes {
   static const String home = '/home';
   static const String addExpense = '/add-expense';
   static const String aiAssistant = '/ai-assistant';
+  static const String receiptScanner = '/receipt-scanner';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -38,6 +40,18 @@ class AppRoutes {
         return MaterialPageRoute(
           builder: (context) => const AddExpenseScreen(),
           fullscreenDialog: true,
+          settings: settings,
+        );
+      case receiptScanner:
+        return MaterialPageRoute(
+          builder: (context) {
+            final args = settings.arguments as Map<String, dynamic>?;
+            final imagePath = args?['imagePath'] as String?;
+            if (imagePath != null) {
+              return ReceiptPreviewScreen(imagePath: imagePath);
+            }
+            return const AddExpenseScreen();
+          },
           settings: settings,
         );
       case aiAssistant:

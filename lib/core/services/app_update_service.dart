@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/network/api_client.dart';
@@ -164,51 +165,13 @@ class AppUpdateService {
               ),
             ],
           ),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                'A new version of Mono is available with the latest fixes and improvements.',
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: const Color(0xFF444444),
-                ),
-              ),
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: const Color(0xFFF4F6F6),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      "WHAT'S NEW:",
-                      style: GoogleFonts.inter(
-                        fontSize: 10,
-                        fontWeight: FontWeight.w700,
-                        color: AppColors.primary,
-                        letterSpacing: 0.5,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      releaseNotes,
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        color: const Color(0xFF333333),
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
+          content: Text(
+            'A new version of Mono (v$latestVersion) is available with the latest performance and security enhancements.',
+            style: GoogleFonts.inter(
+              fontSize: 13,
+              color: const Color(0xFF444444),
+              height: 1.4,
+            ),
           ),
           actionsPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
@@ -226,10 +189,44 @@ class AppUpdateService {
               ),
             ElevatedButton.icon(
               onPressed: () async {
-                final uri = Uri.parse(downloadUrl);
-                if (await canLaunchUrl(uri)) {
-                  await launchUrl(uri,
-                      mode: LaunchMode.externalApplication);
+                if (Navigator.of(dialogCtx).canPop()) {
+                  Navigator.of(dialogCtx).pop();
+                }
+                final cleanUrl = downloadUrl.trim();
+                final uri = Uri.parse(cleanUrl);
+
+                try {
+                  await Clipboard.setData(ClipboardData(text: cleanUrl));
+                } catch (_) {}
+
+                bool launched = false;
+                try {
+                  launched = await launchUrl(
+                    uri,
+                    mode: LaunchMode.externalApplication,
+                  );
+                } catch (_) {}
+
+                if (!launched) {
+                  try {
+                    launched = await launchUrl(
+                      uri,
+                      mode: LaunchMode.platformDefault,
+                    );
+                  } catch (_) {}
+                }
+
+                if (!launched && context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                        'Download link copied to clipboard: $cleanUrl',
+                        style: GoogleFonts.inter(),
+                      ),
+                      backgroundColor: AppColors.primary,
+                      behavior: SnackBarBehavior.floating,
+                    ),
+                  );
                 }
               },
               icon: const Icon(Icons.download_rounded, size: 18),

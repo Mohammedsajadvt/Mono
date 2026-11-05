@@ -68,7 +68,7 @@ export default function LoginView({ onLoginSuccess }) {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter admin password (default: monoadmin2026)"
+              placeholder="Enter admin password (default: admin demo)"
               required
               autoFocus
             />

@@ -1,7 +1,7 @@
 const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
-const { ADMIN_PASSWORD } = require('../middleware/adminAuth');
+const { isValidAdminPassword } = require('../middleware/adminAuth');
 
 // POST /api/admin/login
 const adminLogin = async (req, res) => {
@@ -15,7 +15,7 @@ const adminLogin = async (req, res) => {
       });
     }
 
-    if (password !== ADMIN_PASSWORD) {
+    if (!isValidAdminPassword(password)) {
       return res.status(401).json({
         success: false,
         message: 'Invalid administrator password.',

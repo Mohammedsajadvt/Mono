@@ -39,6 +39,19 @@ class LogoutRequested extends AuthEvent {}
 
 class CheckAuthStatus extends AuthEvent {}
 
+class UpdateProfileRequested extends AuthEvent {
+  final String name;
+  final String email;
+
+  const UpdateProfileRequested({
+    required this.name,
+    required this.email,
+  });
+
+  @override
+  List<Object?> get props => [name, email];
+}
+
 class UpdateProfileAvatar extends AuthEvent {
   final String avatarUrl;
 

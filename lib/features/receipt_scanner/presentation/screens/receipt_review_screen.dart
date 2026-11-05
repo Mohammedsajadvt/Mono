@@ -8,10 +8,10 @@ import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
-import '../bloc/receipt_bloc.dart';
-import '../bloc/receipt_event.dart';
-import '../bloc/receipt_state.dart';
-import '../models/receipt_model.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_event.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_state.dart';
+import 'package:mono_app/features/receipt_scanner/models/receipt_model.dart';
 
 class ReceiptReviewScreen extends StatefulWidget {
   final ReceiptModel receipt;

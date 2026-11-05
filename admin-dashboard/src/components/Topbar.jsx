@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { RotateCw, Clock, ShieldCheck, User } from 'lucide-react';
+import { RotateCw, Clock, ShieldCheck, User, Settings } from 'lucide-react';
+import AdminProfileModal from './AdminProfileModal';
 
-export default function Topbar({ title, adminName, onRefresh, isRefreshing }) {
+export default function Topbar({ title, adminName, onRefresh, isRefreshing, showToast, onAdminUpdated }) {
   const [timeStr, setTimeStr] = useState('');
   const [greeting, setGreeting] = useState('Good day');
+  const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
     const updateTime = () => {
@@ -55,16 +57,34 @@ export default function Topbar({ title, adminName, onRefresh, isRefreshing }) {
           <span>Refresh</span>
         </button>
 
-        <div className="admin-profile-pill">
+        <div 
+          className="admin-profile-pill" 
+          onClick={() => setShowProfileModal(true)}
+          style={{ cursor: 'pointer', transition: 'all 0.2s ease' }}
+          title="Click to edit admin credentials & profile"
+        >
           <div className="admin-avatar">
             <User size={15} />
           </div>
           <div className="admin-details">
             <span className="admin-name">{adminName}</span>
-            <span className="admin-role">Super Admin</span>
+            <span className="admin-role" style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+              <span>Super Admin</span>
+              <Settings size={10} />
+            </span>
           </div>
         </div>
       </div>
+
+      {showProfileModal && (
+        <AdminProfileModal
+          onClose={() => setShowProfileModal(false)}
+          showToast={showToast || console.log}
+          onAdminUpdated={(newName) => {
+            if (onAdminUpdated) onAdminUpdated(newName);
+          }}
+        />
+      )}
     </header>
   );
 }

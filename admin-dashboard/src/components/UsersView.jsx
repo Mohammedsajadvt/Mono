@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, Eye } from 'lucide-react';
+import { Search, ChevronLeft, ChevronRight, Eye, Edit2 } from 'lucide-react';
 import { apiFetch, formatINR, formatDate } from '../api';
 import UserDetailsModal from './UserDetailsModal';
 
@@ -9,6 +9,7 @@ export default function UsersView({ showToast }) {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
   const [selectedUserId, setSelectedUserId] = useState(null);
+  const [modalMode, setModalMode] = useState('view');
 
   const loadUsers = async (page = 1, searchQuery = search) => {
     try {
@@ -108,13 +109,31 @@ export default function UsersView({ showToast }) {
                         <span className="badge badge-gray">{formatDate(u.created_at, false)}</span>
                       </td>
                       <td>
-                        <button
-                          className="btn btn-secondary btn-sm"
-                          onClick={() => setSelectedUserId(u.id)}
-                        >
-                          <Eye size={13} />
-                          <span>Details</span>
-                        </button>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setSelectedUserId(u.id);
+                              setModalMode('view');
+                            }}
+                            title="View account details and transactions"
+                          >
+                            <Eye size={13} />
+                            <span>Details</span>
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            onClick={() => {
+                              setSelectedUserId(u.id);
+                              setModalMode('edit');
+                            }}
+                            title="Edit credentials or fix wrong email"
+                            style={{ color: '#2563EB', borderColor: '#BFDBFE', background: '#EFF6FF' }}
+                          >
+                            <Edit2 size={13} />
+                            <span>Edit</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))
@@ -154,8 +173,10 @@ export default function UsersView({ showToast }) {
       {selectedUserId && (
         <UserDetailsModal
           userId={selectedUserId}
+          initialMode={modalMode}
           onClose={() => setSelectedUserId(null)}
           showToast={showToast}
+          onUserUpdated={() => loadUsers(pagination.page)}
         />
       )}
     </div>

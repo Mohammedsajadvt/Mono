@@ -7,6 +7,7 @@ const {
   validateEmail,
   validatePassword,
   validateUsername,
+  validateName,
   validateOtp,
   validateId,
 } = require('../utils/validators');
@@ -697,6 +698,209 @@ const getUserDetails = async (req, res) => {
   }
 };
 
+// PUT /api/admin/users/:id (Update user auth credentials, name, wrong email, password)
+const updateUser = async (req, res) => {
+  try {
+    const idVal = validateId(req.params.id, 'User ID');
+    if (!idVal.valid) {
+      return res.status(400).json({ success: false, message: idVal.error });
+    }
+    const id = idVal.value;
+
+    const { name, email, password } = req.body;
+
+    // Check user exists
+    const [[existingUser]] = await pool.execute(
+      'SELECT id, name, email FROM users WHERE id = ?',
+      [id]
+    );
+    if (!existingUser) {
+      return res.status(404).json({ success: false, message: 'User account not found.' });
+    }
+
+    let cleanName = existingUser.name;
+    if (name !== undefined && name !== null) {
+      const nameVal = validateName(name);
+      if (!nameVal.valid) {
+        return res.status(400).json({ success: false, message: nameVal.error });
+      }
+      cleanName = nameVal.sanitized;
+    }
+
+    let cleanEmail = existingUser.email;
+    if (email !== undefined && email !== null) {
+      const emailVal = validateEmail(email);
+      if (!emailVal.valid) {
+        return res.status(400).json({ success: false, message: emailVal.error });
+      }
+      cleanEmail = emailVal.sanitized;
+
+      // Check if another user already has this email
+      const [emailConflict] = await pool.execute(
+        'SELECT id FROM users WHERE LOWER(email) = ? AND id != ? LIMIT 1',
+        [cleanEmail, id]
+      );
+      if (emailConflict.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email address already exists. Please choose a different email.',
+        });
+      }
+    }
+
+    let passwordHash = null;
+    if (password && typeof password === 'string' && password.trim().length > 0) {
+      const passVal = validatePassword(password);
+      if (!passVal.valid) {
+        return res.status(400).json({ success: false, message: passVal.error });
+      }
+      const salt = await bcrypt.genSalt(10);
+      passwordHash = await bcrypt.hash(passVal.sanitized, salt);
+    }
+
+    if (passwordHash) {
+      await pool.execute(
+        'UPDATE users SET name = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE id = ?',
+        [cleanName, cleanEmail, passwordHash, id]
+      );
+    } else {
+      await pool.execute(
+        'UPDATE users SET name = ?, email = ?, updated_at = NOW() WHERE id = ?',
+        [cleanName, cleanEmail, id]
+      );
+    }
+
+    const [[updatedUser]] = await pool.execute(
+      'SELECT id, name, email, created_at, updated_at FROM users WHERE id = ?',
+      [id]
+    );
+
+    return res.json({
+      success: true,
+      message: 'User credentials updated successfully.',
+      user: updatedUser,
+    });
+  } catch (error) {
+    console.error('[updateUser] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to update user credentials.',
+    });
+  }
+};
+
+// GET /api/admin/profile (Get logged-in administrator credentials)
+const getAdminProfile = async (req, res) => {
+  try {
+    await ensureAdminTables();
+    const adminId = req.admin.id;
+    const [[admin]] = await pool.execute(
+      'SELECT id, username, email, role, created_at, updated_at FROM admin_users WHERE id = ?',
+      [adminId]
+    );
+    if (!admin) {
+      return res.status(404).json({ success: false, message: 'Admin account not found.' });
+    }
+    return res.json({ success: true, admin });
+  } catch (error) {
+    console.error('[getAdminProfile] Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to retrieve admin profile.' });
+  }
+};
+
+// PUT /api/admin/profile (Update logged-in administrator credentials)
+const updateAdminProfile = async (req, res) => {
+  try {
+    await ensureAdminTables();
+    const adminId = req.admin.id;
+    const { username, email, password } = req.body;
+
+    const [[currentAdmin]] = await pool.execute(
+      'SELECT id, username, email FROM admin_users WHERE id = ?',
+      [adminId]
+    );
+    if (!currentAdmin) {
+      return res.status(404).json({ success: false, message: 'Admin account not found.' });
+    }
+
+    let cleanUsername = currentAdmin.username;
+    if (username !== undefined && username !== null) {
+      const userVal = validateUsername(username);
+      if (!userVal.valid) {
+        return res.status(400).json({ success: false, message: userVal.error });
+      }
+      cleanUsername = userVal.sanitized;
+
+      const [userConflict] = await pool.execute(
+        'SELECT id FROM admin_users WHERE LOWER(username) = ? AND id != ? LIMIT 1',
+        [cleanUsername.toLowerCase(), adminId]
+      );
+      if (userConflict.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'An administrator with this username already exists.',
+        });
+      }
+    }
+
+    let cleanEmail = currentAdmin.email;
+    if (email !== undefined && email !== null && email.trim() !== '') {
+      const emailVal = validateEmail(email);
+      if (!emailVal.valid) {
+        return res.status(400).json({ success: false, message: emailVal.error });
+      }
+      cleanEmail = emailVal.sanitized;
+
+      const [emailConflict] = await pool.execute(
+        'SELECT id FROM admin_users WHERE LOWER(email) = ? AND id != ? LIMIT 1',
+        [cleanEmail, adminId]
+      );
+      if (emailConflict.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'An administrator with this email address already exists.',
+        });
+      }
+    }
+
+    let passwordHash = null;
+    if (password && typeof password === 'string' && password.trim().length > 0) {
+      const passVal = validatePassword(password);
+      if (!passVal.valid) {
+        return res.status(400).json({ success: false, message: passVal.error });
+      }
+      const salt = await bcrypt.genSalt(10);
+      passwordHash = await bcrypt.hash(passVal.sanitized, salt);
+    }
+
+    if (passwordHash) {
+      await pool.execute(
+        'UPDATE admin_users SET username = ?, email = ?, password_hash = ?, updated_at = NOW() WHERE id = ?',
+        [cleanUsername, cleanEmail, passwordHash, adminId]
+      );
+    } else {
+      await pool.execute(
+        'UPDATE admin_users SET username = ?, email = ?, updated_at = NOW() WHERE id = ?',
+        [cleanUsername, cleanEmail, adminId]
+      );
+    }
+
+    const [[updatedAdmin]] = await pool.execute(
+      'SELECT id, username, email, role, updated_at FROM admin_users WHERE id = ?',
+      [adminId]
+    );
+
+    return res.json({
+      success: true,
+      message: 'Admin credentials updated successfully.',
+      admin: updatedAdmin,
+    });
+  } catch (error) {
+    console.error('[updateAdminProfile] Error:', error);
+    return res.status(500).json({ success: false, message: 'Failed to update admin credentials.' });
+  }
+};
+
 // GET /api/admin/transactions
 const getTransactions = async (req, res) => {
   try {
@@ -898,6 +1102,9 @@ module.exports = {
   getOverview,
   getUsers,
   getUserDetails,
+  updateUser,
+  getAdminProfile,
+  updateAdminProfile,
   getTransactions,
   getCategories,
   getAppConfig,

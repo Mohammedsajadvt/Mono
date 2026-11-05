@@ -1,3 +1,4 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:mono_app/features/splash/presentation/screens/splash_screen.dart';
 import 'package:mono_app/features/onboarding/presentation/screens/onboarding_screen.dart';
@@ -48,7 +49,7 @@ class AppRoutes {
             final args = settings.arguments as Map<String, dynamic>?;
             final imagePath = args?['imagePath'] as String?;
             if (imagePath != null) {
-              return ReceiptPreviewScreen(imagePath: imagePath);
+              return ReceiptPreviewScreen(initialImageFile: File(imagePath));
             }
             return const AddExpenseScreen();
           },

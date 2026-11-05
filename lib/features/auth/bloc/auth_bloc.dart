@@ -19,6 +19,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
     on<SignupRequested>(_onSignupRequested);
     on<LogoutRequested>(_onLogoutRequested);
     on<UpdateProfileAvatar>(_onUpdateProfileAvatar);
+    on<UpdateProfileRequested>(_onUpdateProfileRequested);
   }
 
   ApiClient get _client => apiClient ?? ApiClient(secureStorage: secureStorage);
@@ -246,6 +247,43 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'avatar_url': event.avatarUrl,
         });
       } catch (_) {}
+    }
+  }
+
+  Future<void> _onUpdateProfileRequested(
+    UpdateProfileRequested event,
+    Emitter<AuthState> emit,
+  ) async {
+    if (state is Authenticated) {
+      final currentUser = (state as Authenticated).user;
+      try {
+        final response = await _client.dio.put('/auth/profile', data: {
+          'name': event.name.trim(),
+          'email': event.email.trim(),
+        });
+
+        if (response.statusCode == 200 && response.data['success'] == true) {
+          final u = response.data['user'];
+          final updatedUser = currentUser.copyWith(
+            name: u?['name']?.toString() ?? event.name.trim(),
+            email: u?['email']?.toString() ?? event.email.trim(),
+            username:
+                '@${(u?['name'] ?? event.name.trim()).toString().toLowerCase().replaceAll(RegExp(r'\s+'), '_')}',
+          );
+
+          await secureStorage.saveUserData(
+            id: updatedUser.id,
+            name: updatedUser.name,
+            email: updatedUser.email,
+            avatarUrl: updatedUser.avatarUrl,
+          );
+
+          emit(Authenticated(updatedUser));
+        }
+      } catch (e) {
+        emit(Authenticated(currentUser));
+        rethrow;
+      }
     }
   }
 

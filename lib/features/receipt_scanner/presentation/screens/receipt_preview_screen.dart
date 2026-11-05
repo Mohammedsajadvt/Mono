@@ -4,9 +4,9 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
-import '../bloc/receipt_bloc.dart';
-import '../bloc/receipt_event.dart';
-import '../bloc/receipt_state.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_event.dart';
+import 'package:mono_app/features/receipt_scanner/bloc/receipt_state.dart';
 import 'receipt_review_screen.dart';
 
 class ReceiptPreviewScreen extends StatefulWidget {

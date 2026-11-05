@@ -11,8 +11,11 @@ router.post('/reset-password', adminController.adminResetPassword);
 
 // Protected admin endpoints
 router.get('/overview', verifyAdminToken, adminController.getOverview);
+router.get('/profile', verifyAdminToken, adminController.getAdminProfile);
+router.put('/profile', verifyAdminToken, adminController.updateAdminProfile);
 router.get('/users', verifyAdminToken, adminController.getUsers);
 router.get('/users/:id', verifyAdminToken, adminController.getUserDetails);
+router.put('/users/:id', verifyAdminToken, adminController.updateUser);
 router.get('/transactions', verifyAdminToken, adminController.getTransactions);
 router.get('/categories', verifyAdminToken, adminController.getCategories);
 router.get('/app-config', verifyAdminToken, adminController.getAppConfig);

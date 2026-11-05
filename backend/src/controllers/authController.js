@@ -213,7 +213,7 @@ const getMe = async (req, res) => {
 // PUT /api/auth/profile
 const updateProfile = async (req, res) => {
   try {
-    const { name, avatar_url } = req.body;
+    const { name, email, avatar_url } = req.body;
 
     let cleanName = null;
     if (name !== undefined && name !== null) {
@@ -225,6 +225,30 @@ const updateProfile = async (req, res) => {
         });
       }
       cleanName = nameVal.sanitized;
+    }
+
+    let cleanEmail = null;
+    if (email !== undefined && email !== null) {
+      const emailVal = validateEmail(email);
+      if (!emailVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: emailVal.error,
+        });
+      }
+      cleanEmail = emailVal.sanitized;
+
+      // Check if email is already taken by another account
+      const [emailConflict] = await pool.execute(
+        'SELECT id FROM users WHERE LOWER(email) = ? AND id != ? LIMIT 1',
+        [cleanEmail, req.user.id]
+      );
+      if (emailConflict.length > 0) {
+        return res.status(400).json({
+          success: false,
+          message: 'An account with this email address already exists. Please enter your correct email.',
+        });
+      }
     }
 
     let cleanAvatar = null;
@@ -240,8 +264,8 @@ const updateProfile = async (req, res) => {
     }
 
     await pool.execute(
-      'UPDATE users SET name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
-      [cleanName, cleanAvatar, req.user.id]
+      'UPDATE users SET name = COALESCE(?, name), email = COALESCE(?, email), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
+      [cleanName, cleanEmail, cleanAvatar, req.user.id]
     );
 
     const [users] = await pool.execute(

@@ -176,6 +176,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _nameController,
+                      autofillHints: null,
+                      enableSuggestions: false,
+                      autocorrect: false,
                       decoration: InputDecoration(
                         hintText: 'Enter Name',
                         hintStyle: GoogleFonts.inter(color: Colors.grey.shade400),
@@ -216,6 +219,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _emailController,
+                      autofillHints: null,
+                      enableSuggestions: false,
+                      autocorrect: false,
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         hintText: 'Enter Email',
@@ -257,6 +263,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     const SizedBox(height: 8),
                     TextField(
                       controller: _passwordController,
+                      autofillHints: null,
+                      enableSuggestions: false,
+                      autocorrect: false,
                       obscureText: _obscurePassword,
                       decoration: InputDecoration(
                         hintText: 'Enter Password',

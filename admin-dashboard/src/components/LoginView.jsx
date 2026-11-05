@@ -246,18 +246,40 @@ export default function LoginView({ onLoginSuccess }) {
 
         {/* ================= MODE: LOGIN ================= */}
         {mode === 'login' && (
-          <form onSubmit={handleLoginSubmit}>
+          <form onSubmit={handleLoginSubmit} autoComplete="off" noValidate>
+            {/* Decoy inputs to neutralize browser credential autofill */}
+            <input
+              type="text"
+              name="fake_autofill_user"
+              style={{ position: 'absolute', opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: 'none' }}
+              tabIndex={-1}
+              autoComplete="off"
+              readOnly
+            />
+            <input
+              type="password"
+              name="fake_autofill_pass"
+              style={{ position: 'absolute', opacity: 0, height: 0, width: 0, zIndex: -1, pointerEvents: 'none' }}
+              tabIndex={-1}
+              autoComplete="off"
+              readOnly
+            />
+
             <div className="form-group">
               <label>
                 <UserCheck size={14} /> Admin Username or Email
               </label>
               <input
                 type="text"
+                name="admin_login_identity_field"
+                id="admin_login_identity_field"
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Enter username or email"
                 required
-                autoFocus
+                autoComplete="off"
+                autoCorrect="off"
+                spellCheck="false"
               />
             </div>
 
@@ -268,10 +290,13 @@ export default function LoginView({ onLoginSuccess }) {
               <div className="password-input-wrap">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  name="admin_login_secret_field"
+                  id="admin_login_secret_field"
                   value={loginPassword}
                   onChange={(e) => setLoginPassword(e.target.value)}
                   placeholder="Enter administrator password"
                   required
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -322,18 +347,20 @@ export default function LoginView({ onLoginSuccess }) {
 
         {/* ================= MODE: SIGNUP ================= */}
         {mode === 'signup' && (
-          <form onSubmit={handleSignupSubmit}>
+          <form onSubmit={handleSignupSubmit} autoComplete="off" noValidate>
             <div className="form-group">
               <label>
                 <UserCheck size={14} /> Administrator Username
               </label>
               <input
                 type="text"
+                name="admin_signup_user"
+                id="admin_signup_user"
                 value={signupUsername}
                 onChange={(e) => setSignupUsername(e.target.value)}
                 placeholder="e.g. admin_sajad"
                 required
-                autoFocus
+                autoComplete="off"
               />
             </div>
 
@@ -343,10 +370,13 @@ export default function LoginView({ onLoginSuccess }) {
               </label>
               <input
                 type="email"
+                name="admin_signup_mail"
+                id="admin_signup_mail"
                 value={signupEmail}
                 onChange={(e) => setSignupEmail(e.target.value)}
                 placeholder="admin@example.com"
                 required
+                autoComplete="off"
               />
               <small>Used for password recovery confirmation codes via email</small>
             </div>
@@ -358,10 +388,13 @@ export default function LoginView({ onLoginSuccess }) {
               <div className="password-input-wrap">
                 <input
                   type={showPassword ? 'text' : 'password'}
+                  name="admin_signup_pwd"
+                  id="admin_signup_pwd"
                   value={signupPassword}
                   onChange={(e) => setSignupPassword(e.target.value)}
                   placeholder="Create secure password"
                   required
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -381,10 +414,13 @@ export default function LoginView({ onLoginSuccess }) {
               <div className="password-input-wrap">
                 <input
                   type={showConfirmPassword ? 'text' : 'password'}
+                  name="admin_signup_repwd"
+                  id="admin_signup_repwd"
                   value={signupConfirm}
                   onChange={(e) => setSignupConfirm(e.target.value)}
                   placeholder="Repeat your password"
                   required
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"

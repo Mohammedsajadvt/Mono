@@ -85,6 +85,8 @@ export default function App() {
           adminName={adminName}
           onRefresh={handleRefresh}
           isRefreshing={isRefreshing}
+          showToast={showToast}
+          onAdminUpdated={(name) => setAdminName(name)}
         />
 
         <div className="view-container" key={refreshKey}>

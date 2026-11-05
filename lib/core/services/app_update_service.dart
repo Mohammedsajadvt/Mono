@@ -7,8 +7,8 @@ import 'package:mono_app/core/network/api_client.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class AppUpdateService {
-  static const String currentAppVersion = '1.0.0';
-  static const int currentBuildNumber = 1;
+  static const String currentAppVersion = '1.0.1';
+  static const int currentBuildNumber = 2;
 
   static bool _hasPromptedThisSession = false;
 
@@ -51,13 +51,15 @@ class AppUpdateService {
       if (response.statusCode == 200 && response.data['success'] == true) {
         final data = response.data;
         final latestVersion = data['latestVersion']?.toString() ?? '1.0.0';
+        final latestBuild = int.tryParse(data['buildNumber']?.toString() ?? '1') ?? 1;
         final downloadUrl = data['downloadUrl']?.toString() ??
             'https://betadrop.app/i/qQhg9L';
         final releaseNotes = data['releaseNotes']?.toString() ??
             'Performance optimizations and latest features.';
         final forceUpdate = data['forceUpdate'] == true;
 
-        final hasUpdate = isNewerVersion(currentAppVersion, latestVersion);
+        final hasUpdate = isNewerVersion(currentAppVersion, latestVersion) ||
+            (latestVersion == currentAppVersion && latestBuild > currentBuildNumber);
 
         if (!context.mounted) return;
 

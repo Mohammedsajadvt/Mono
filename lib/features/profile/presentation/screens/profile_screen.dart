@@ -314,7 +314,8 @@ class ProfileScreen extends StatelessWidget {
                         _buildInfoRow(
                           icon: Icons.info_outline_rounded,
                           label: 'Version',
-                          value: 'Mono v1.0.0 (Production)',
+                          value:
+                              'Mono v${AppUpdateService.currentAppVersion} (Production)',
                         ),
                         const Divider(height: 1, indent: 52),
                         InkWell(

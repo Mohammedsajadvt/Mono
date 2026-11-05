@@ -20,7 +20,7 @@ export default function LoginView({ onLoginSuccess }) {
   const [mode, setMode] = useState('login');
 
   // Form Fields
-  const [identifier, setIdentifier] = useState('admin');
+  const [identifier, setIdentifier] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
 
   const [signupUsername, setSignupUsername] = useState('');
@@ -69,7 +69,7 @@ export default function LoginView({ onLoginSuccess }) {
       const data = await res.json();
       if (res.ok && data.success) {
         setAdminToken(data.token);
-        const adminName = data.admin?.username || identifier || 'admin';
+        const adminName = data.admin?.username || identifier || 'Administrator';
         setAdminUser(adminName);
         onLoginSuccess(adminName);
       } else {

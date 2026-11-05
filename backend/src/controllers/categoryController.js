@@ -1,4 +1,10 @@
 const pool = require('../config/db');
+const {
+  validateCategoryType,
+  validateHexColor,
+  validateId,
+  validateString,
+} = require('../utils/validators');
 
 const DEFAULT_CATEGORIES = [
   // Expense Categories
@@ -124,17 +130,19 @@ const createCategory = async (req, res) => {
     const userId = req.user.id;
     const { name, icon, color, type } = req.body;
 
-    if (!name || !name.trim()) {
+    const nameVal = validateString(name, 'Category name', 60, true);
+    if (!nameVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Category name is required.',
+        message: nameVal.error,
       });
     }
 
-    const categoryName = name.trim();
-    const categoryIcon = icon || 'movie_outlined';
-    const categoryColor = color || '#438883';
-    const categoryType = (type === 'income' || type === 'expense') ? type : 'both';
+    const iconVal = validateString(icon, 'Category icon', 60, false);
+    const categoryName = nameVal.sanitized;
+    const categoryIcon = iconVal.sanitized || 'movie_outlined';
+    const categoryColor = validateHexColor(color).value;
+    const categoryType = validateCategoryType(type).value;
 
     // Insert new category strictly with user_id
     const [result] = await pool.execute(
@@ -170,20 +178,29 @@ const createCategory = async (req, res) => {
 const updateCategory = async (req, res) => {
   try {
     const userId = req.user.id;
-    const categoryId = req.params.id;
-    const { name, icon, color, type } = req.body;
-
-    if (!name || !name.trim()) {
+    const catIdVal = validateId(req.params.id, 'Category ID');
+    if (!catIdVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Category name is required.',
+        message: catIdVal.error,
+      });
+    }
+    const categoryId = catIdVal.value;
+    const { name, icon, color, type } = req.body;
+
+    const nameVal = validateString(name, 'Category name', 60, true);
+    if (!nameVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: nameVal.error,
       });
     }
 
-    const categoryName = name.trim();
-    const categoryIcon = icon || 'category_rounded';
-    const categoryColor = color || '#438883';
-    const categoryType = (type === 'income' || type === 'expense') ? type : 'both';
+    const iconVal = validateString(icon, 'Category icon', 60, false);
+    const categoryName = nameVal.sanitized;
+    const categoryIcon = iconVal.sanitized || 'category_rounded';
+    const categoryColor = validateHexColor(color).value;
+    const categoryType = validateCategoryType(type).value;
 
     // Strict multi-tenant isolation: user_id = ?
     const [result] = await pool.execute(
@@ -204,7 +221,7 @@ const updateCategory = async (req, res) => {
       success: true,
       message: 'Category updated successfully.',
       category: {
-        id: parseInt(categoryId, 10),
+        id: categoryId,
         user_id: userId,
         name: categoryName,
         icon: categoryIcon,
@@ -226,7 +243,14 @@ const updateCategory = async (req, res) => {
 const deleteCategory = async (req, res) => {
   try {
     const userId = req.user.id;
-    const categoryId = req.params.id;
+    const catIdVal = validateId(req.params.id, 'Category ID');
+    if (!catIdVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: catIdVal.error,
+      });
+    }
+    const categoryId = catIdVal.value;
 
     // Unlink any transactions using this category first
     await pool.execute(

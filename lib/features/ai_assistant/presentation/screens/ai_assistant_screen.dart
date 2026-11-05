@@ -96,8 +96,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
   }
 
   void _showSavingsGoalDialog() {
-    final goalNameCtrl = TextEditingController(text: 'iPhone 16');
-    final goalAmountCtrl = TextEditingController(text: '70000');
+    final goalNameCtrl = TextEditingController();
+    final goalAmountCtrl = TextEditingController();
     String? recommendation;
 
     showModalBottomSheet(
@@ -160,6 +160,7 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   controller: goalNameCtrl,
                   decoration: InputDecoration(
                     labelText: 'Goal Name',
+                    hintText: 'e.g. Emergency Fund or New Device',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),
@@ -169,7 +170,8 @@ class _AiAssistantScreenState extends State<AiAssistantScreen> {
                   controller: goalAmountCtrl,
                   keyboardType: TextInputType.number,
                   decoration: InputDecoration(
-                    labelText: 'Target Amount (e.g. 70000)',
+                    labelText: 'Target Amount (₹)',
+                    hintText: 'e.g. 50000',
                     border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12)),
                   ),

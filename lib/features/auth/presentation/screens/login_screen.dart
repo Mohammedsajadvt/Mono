@@ -253,10 +253,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                       infoMessage = res.data['message']
                                               ?.toString() ??
                                           'Verification code sent to $email';
-                                      if (res.data['devCode'] != null) {
-                                        otpCodeCtrl.text =
-                                            res.data['devCode'].toString();
-                                      }
                                     });
                                   } else {
                                     setSheetState(() {
@@ -335,11 +331,11 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                       decoration: InputDecoration(
                         counterText: '',
-                        hintText: '123456',
+                        hintText: '••••••',
                         hintStyle: GoogleFonts.inter(
                           fontSize: 22,
                           letterSpacing: 8,
-                          color: Colors.grey.shade300,
+                          color: Colors.grey.shade400,
                         ),
                         prefixIcon: const Icon(Icons.pin_rounded,
                             size: 20, color: AppColors.primary),

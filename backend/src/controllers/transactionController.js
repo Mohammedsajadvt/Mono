@@ -1,4 +1,11 @@
 const pool = require('../config/db');
+const {
+  validateAmount,
+  validateDate,
+  validateTransactionType,
+  validateId,
+  validateString,
+} = require('../utils/validators');
 
 // GET /api/transactions
 const getTransactions = async (req, res) => {
@@ -19,13 +26,19 @@ const getTransactions = async (req, res) => {
     }
 
     if (startDate) {
-      baseFilter += ' AND t.transaction_date >= ?';
-      params.push(startDate);
+      const sDateVal = validateDate(startDate);
+      if (sDateVal.valid) {
+        baseFilter += ' AND t.transaction_date >= ?';
+        params.push(sDateVal.sanitized);
+      }
     }
 
     if (endDate) {
-      baseFilter += ' AND t.transaction_date <= ?';
-      params.push(endDate);
+      const eDateVal = validateDate(endDate);
+      if (eDateVal.valid) {
+        baseFilter += ' AND t.transaction_date <= ?';
+        params.push(eDateVal.sanitized);
+      }
     }
 
     // 1. Get total count for pagination
@@ -36,7 +49,7 @@ const getTransactions = async (req, res) => {
     const total = parseInt(countResult[0].total, 10) || 0;
     const totalPages = Math.ceil(total / limitNum);
 
-    // 2. Fetch paginated slice with optimized index lookup
+    // 2. Fetch paginated slice with parameterized query
     const query = `
       SELECT t.id, t.user_id, t.category_id, t.title, t.type, t.amount, 
              DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
@@ -77,30 +90,72 @@ const createTransaction = async (req, res) => {
     const userId = req.user.id;
     const { title, category_id, category, amount, type, transaction_date, invoice_url, notes } = req.body;
 
-    if (!title || amount === undefined || amount === null) {
+    const titleVal = validateString(title, 'Title', 200, true);
+    if (!titleVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Title and amount are required.',
+        message: titleVal.error,
       });
     }
 
-    const numericAmount = parseFloat(amount);
-    if (isNaN(numericAmount) || numericAmount <= 0) {
+    const amountVal = validateAmount(amount);
+    if (!amountVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Amount must be a positive number.',
+        message: amountVal.error,
       });
     }
 
-    const txType = (type && type.toLowerCase() === 'income') ? 'income' : 'expense';
-    const txDate = transaction_date || new Date().toISOString().slice(0, 10);
+    const typeVal = validateTransactionType(type);
+    if (!typeVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: typeVal.error,
+      });
+    }
 
-    // If category_id not provided but category name provided, try to find matching category
-    let resolvedCategoryId = category_id || null;
-    if (!resolvedCategoryId && category) {
+    let txDate = new Date().toISOString().slice(0, 10);
+    if (transaction_date) {
+      const dateVal = validateDate(transaction_date);
+      if (!dateVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: dateVal.error,
+        });
+      }
+      txDate = dateVal.sanitized;
+    }
+
+    let cleanInvoiceUrl = null;
+    if (invoice_url) {
+      const invVal = validateString(invoice_url, 'Invoice URL', 500);
+      if (!invVal.valid) {
+        return res.status(400).json({ success: false, message: invVal.error });
+      }
+      cleanInvoiceUrl = invVal.sanitized;
+    }
+
+    let cleanNotes = null;
+    if (notes) {
+      const notesVal = validateString(notes, 'Notes', 1000);
+      if (!notesVal.valid) {
+        return res.status(400).json({ success: false, message: notesVal.error });
+      }
+      cleanNotes = notesVal.sanitized;
+    }
+
+    // Resolve Category ID
+    let resolvedCategoryId = null;
+    if (category_id !== undefined && category_id !== null && category_id !== '') {
+      const catIdVal = validateId(category_id, 'Category ID');
+      if (!catIdVal.valid) {
+        return res.status(400).json({ success: false, message: catIdVal.error });
+      }
+      resolvedCategoryId = catIdVal.value;
+    } else if (category && typeof category === 'string') {
       const [cats] = await pool.execute(
         'SELECT id FROM categories WHERE name = ? AND user_id = ? LIMIT 1',
-        [category, userId]
+        [category.trim(), userId]
       );
       if (cats.length > 0) {
         resolvedCategoryId = cats[0].id;
@@ -124,7 +179,7 @@ const createTransaction = async (req, res) => {
     const [result] = await pool.execute(
       `INSERT INTO transactions (user_id, category_id, title, type, amount, transaction_date, invoice_url, notes)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, resolvedCategoryId, title, txType, numericAmount, txDate, invoice_url || null, notes || null]
+      [userId, resolvedCategoryId, titleVal.sanitized, typeVal.value, amountVal.value, txDate, cleanInvoiceUrl, cleanNotes]
     );
 
     // Follow-up SELECT strictly scoped by both transaction id AND user_id
@@ -392,22 +447,55 @@ const exportTransactions = async (req, res) => {
     const userId = req.user.id;
     const { period = 'monthly', format = 'json', currency = 'INR', type = 'all', startDate, endDate } = req.query;
 
-    let dateCondition = '';
+    // Validate format
+    const cleanFormat = (format && typeof format === 'string' && format.toLowerCase() === 'csv') ? 'csv' : 'json';
+
+    // Validate currency
+    const allowedCurrencies = ['INR', 'USD', 'EUR', 'GBP'];
+    const cleanCurrency = (currency && typeof currency === 'string' && allowedCurrencies.includes(currency.toUpperCase()))
+      ? currency.toUpperCase()
+      : 'INR';
+
+    // Validate type
+    const cleanType = (type && typeof type === 'string') ? type.toLowerCase().trim() : 'all';
+
     const now = new Date();
     let periodLabel = '';
+    let dateCondition = '';
+    const params = [cleanCurrency, userId];
 
     if (startDate && endDate) {
-      dateCondition = `AND t.transaction_date >= '${startDate}' AND t.transaction_date <= '${endDate}'`;
-      periodLabel = `Custom Statement (${startDate} to ${endDate})`;
+      const sVal = validateDate(startDate);
+      const eVal = validateDate(endDate);
+      if (!sVal.valid || !eVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid date range: Dates must be valid and formatted as YYYY-MM-DD.',
+        });
+      }
+      dateCondition = 'AND t.transaction_date >= ? AND t.transaction_date <= ?';
+      params.push(sVal.sanitized, eVal.sanitized);
+      periodLabel = `Custom Statement (${sVal.sanitized} to ${eVal.sanitized})`;
     } else if (startDate) {
-      dateCondition = `AND t.transaction_date >= '${startDate}'`;
-      periodLabel = `From ${startDate}`;
+      const sVal = validateDate(startDate);
+      if (!sVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid start date: Date must be valid and formatted as YYYY-MM-DD.',
+        });
+      }
+      dateCondition = 'AND t.transaction_date >= ?';
+      params.push(sVal.sanitized);
+      periodLabel = `From ${sVal.sanitized}`;
     } else if (period === 'last_month') {
       const prevDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
       const prevYear = prevDate.getFullYear();
       const prevMonth = String(prevDate.getMonth() + 1).padStart(2, '0');
       const lastDayOfPrevMonth = new Date(prevYear, prevDate.getMonth() + 1, 0).getDate();
-      dateCondition = `AND t.transaction_date >= '${prevYear}-${prevMonth}-01' AND t.transaction_date <= '${prevYear}-${prevMonth}-${lastDayOfPrevMonth}'`;
+      const startStr = `${prevYear}-${prevMonth}-01`;
+      const endStr = `${prevYear}-${prevMonth}-${lastDayOfPrevMonth}`;
+      dateCondition = 'AND t.transaction_date >= ? AND t.transaction_date <= ?';
+      params.push(startStr, endStr);
       const prevMonthName = prevDate.toLocaleString('default', { month: 'long' });
       periodLabel = `Last Month (${prevMonthName} ${prevYear})`;
     } else if (period === 'last_3_months') {
@@ -415,7 +503,10 @@ const exportTransactions = async (req, res) => {
       periodLabel = 'Last 3 Months';
     } else if (period === 'last_year') {
       const lastYear = now.getFullYear() - 1;
-      dateCondition = `AND t.transaction_date >= '${lastYear}-01-01' AND t.transaction_date <= '${lastYear}-12-31'`;
+      const startStr = `${lastYear}-01-01`;
+      const endStr = `${lastYear}-12-31`;
+      dateCondition = 'AND t.transaction_date >= ? AND t.transaction_date <= ?';
+      params.push(startStr, endStr);
       periodLabel = `Last Year (${lastYear})`;
     } else if (period === 'weekly') {
       dateCondition = 'AND t.transaction_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)';
@@ -426,12 +517,17 @@ const exportTransactions = async (req, res) => {
       const currentMonth = now.getMonth() + 1; // 1-12
       const fyStartYear = currentMonth >= 4 ? currentYear : currentYear - 1;
       const fyEndYear = fyStartYear + 1;
-      dateCondition = `AND t.transaction_date >= '${fyStartYear}-04-01' AND t.transaction_date <= '${fyEndYear}-03-31'`;
+      const startStr = `${fyStartYear}-04-01`;
+      const endStr = `${fyEndYear}-03-31`;
+      dateCondition = 'AND t.transaction_date >= ? AND t.transaction_date <= ?';
+      params.push(startStr, endStr);
       periodLabel = `Indian Financial Year (FY ${fyStartYear}-${fyEndYear.toString().slice(-2)})`;
     } else if (period === 'monthly') {
       const year = now.getFullYear();
       const month = String(now.getMonth() + 1).padStart(2, '0');
-      dateCondition = `AND t.transaction_date >= '${year}-${month}-01'`;
+      const startStr = `${year}-${month}-01`;
+      dateCondition = 'AND t.transaction_date >= ?';
+      params.push(startStr);
       const monthName = now.toLocaleString('default', { month: 'long' });
       periodLabel = `Monthly (${monthName} ${year})`;
     } else {
@@ -439,8 +535,9 @@ const exportTransactions = async (req, res) => {
     }
 
     let typeCondition = '';
-    if (type === 'expense' || type === 'income') {
-      typeCondition = `AND t.type = '${type}'`;
+    if (cleanType === 'expense' || cleanType === 'income') {
+      typeCondition = 'AND t.type = ?';
+      params.push(cleanType);
     }
 
     const query = `
@@ -456,7 +553,7 @@ const exportTransactions = async (req, res) => {
       ORDER BY t.transaction_date DESC, t.id DESC
     `;
 
-    const [transactions] = await pool.execute(query, [currency, userId]);
+    const [transactions] = await pool.execute(query, params);
 
     // Calculate Indian Financial Metrics & 50/30/20 Budgeting Rule
     let totalIncome = 0;
@@ -513,8 +610,8 @@ const exportTransactions = async (req, res) => {
     const netSavings = totalIncome - totalExpense;
     const savingsRate = totalIncome > 0 ? ((netSavings / totalIncome) * 100).toFixed(1) : '0.0';
 
-    if (format === 'csv') {
-      const currSymbol = currency === 'INR' ? 'INR (₹)' : 'USD ($)';
+    if (cleanFormat === 'csv') {
+      const currSymbol = cleanCurrency === 'INR' ? 'INR (₹)' : 'USD ($)';
       let csv = `Transaction ID,Date,Title,Category,Payment Mode,Type,Amount (${currSymbol}),Notes\r\n`;
       transactions.forEach(t => {
         const cleanTitle = `"${(t.title || '').replace(/"/g, '""')}"`;
@@ -532,8 +629,8 @@ const exportTransactions = async (req, res) => {
       success: true,
       data: {
         period: periodLabel,
-        currency,
-        currencySymbol: currency === 'INR' ? '₹' : '$',
+        currency: cleanCurrency,
+        currencySymbol: cleanCurrency === 'INR' ? '₹' : '$',
         user: {
           name: req.user.name,
           email: req.user.email,
@@ -580,7 +677,15 @@ const exportTransactions = async (req, res) => {
 const updateTransaction = async (req, res) => {
   try {
     const userId = req.user.id;
-    const txId = req.params.id;
+    const txIdVal = validateId(req.params.id, 'Transaction ID');
+    if (!txIdVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: txIdVal.error,
+      });
+    }
+    const txId = txIdVal.value;
+
     const { title, category_id, category, amount, type, transaction_date, invoice_url, notes } = req.body;
 
     // Check ownership
@@ -596,22 +701,44 @@ const updateTransaction = async (req, res) => {
       });
     }
 
-    let numericAmount;
-    if (amount !== undefined && amount !== null) {
-      numericAmount = parseFloat(amount);
-      if (isNaN(numericAmount) || numericAmount <= 0) {
-        return res.status(400).json({
-          success: false,
-          message: 'Amount must be a positive number.',
-        });
+    let numericAmount = null;
+    if (amount !== undefined && amount !== null && amount !== '') {
+      const amtVal = validateAmount(amount);
+      if (!amtVal.valid) {
+        return res.status(400).json({ success: false, message: amtVal.error });
       }
+      numericAmount = amtVal.value;
     }
 
-    let resolvedCategoryId = category_id !== undefined ? category_id : null;
-    if (!resolvedCategoryId && category) {
+    let cleanTitle = null;
+    if (title !== undefined && title !== null) {
+      const titleVal = validateString(title, 'Title', 200, true);
+      if (!titleVal.valid) {
+        return res.status(400).json({ success: false, message: titleVal.error });
+      }
+      cleanTitle = titleVal.sanitized;
+    }
+
+    let cleanDate = null;
+    if (transaction_date !== undefined && transaction_date !== null && transaction_date !== '') {
+      const dateVal = validateDate(transaction_date);
+      if (!dateVal.valid) {
+        return res.status(400).json({ success: false, message: dateVal.error });
+      }
+      cleanDate = dateVal.sanitized;
+    }
+
+    let resolvedCategoryId = null;
+    if (category_id !== undefined && category_id !== null && category_id !== '') {
+      const catIdVal = validateId(category_id, 'Category ID');
+      if (!catIdVal.valid) {
+        return res.status(400).json({ success: false, message: catIdVal.error });
+      }
+      resolvedCategoryId = catIdVal.value;
+    } else if (category && typeof category === 'string') {
       const [cats] = await pool.execute(
         'SELECT id FROM categories WHERE name = ? AND user_id = ? LIMIT 1',
-        [category, userId]
+        [category.trim(), userId]
       );
       if (cats.length > 0) {
         resolvedCategoryId = cats[0].id;
@@ -631,7 +758,32 @@ const updateTransaction = async (req, res) => {
       }
     }
 
-    const txType = type ? (type.toLowerCase() === 'income' ? 'income' : 'expense') : null;
+    let txType = null;
+    if (type !== undefined && type !== null && type !== '') {
+      const typeVal = validateTransactionType(type);
+      if (!typeVal.valid) {
+        return res.status(400).json({ success: false, message: typeVal.error });
+      }
+      txType = typeVal.value;
+    }
+
+    let cleanInvoiceUrl = null;
+    if (invoice_url !== undefined && invoice_url !== null) {
+      const invVal = validateString(invoice_url, 'Invoice URL', 500);
+      if (!invVal.valid) {
+        return res.status(400).json({ success: false, message: invVal.error });
+      }
+      cleanInvoiceUrl = invVal.sanitized;
+    }
+
+    let cleanNotes = null;
+    if (notes !== undefined && notes !== null) {
+      const notesVal = validateString(notes, 'Notes', 1000);
+      if (!notesVal.valid) {
+        return res.status(400).json({ success: false, message: notesVal.error });
+      }
+      cleanNotes = notesVal.sanitized;
+    }
 
     await pool.execute(
       `UPDATE transactions SET
@@ -645,13 +797,13 @@ const updateTransaction = async (req, res) => {
          updated_at = NOW()
        WHERE id = ? AND user_id = ?`,
       [
-        title || null,
-        numericAmount !== undefined ? numericAmount : null,
-        resolvedCategoryId || null,
-        txType || null,
-        transaction_date || null,
-        invoice_url || null,
-        notes || null,
+        cleanTitle,
+        numericAmount,
+        resolvedCategoryId,
+        txType,
+        cleanDate,
+        cleanInvoiceUrl,
+        cleanNotes,
         txId,
         userId,
       ]
@@ -686,7 +838,14 @@ const updateTransaction = async (req, res) => {
 const deleteTransaction = async (req, res) => {
   try {
     const userId = req.user.id;
-    const txId = req.params.id;
+    const txIdVal = validateId(req.params.id, 'Transaction ID');
+    if (!txIdVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: txIdVal.error,
+      });
+    }
+    const txId = txIdVal.value;
 
     // Permanently delete transaction strictly for this user
     const [result] = await pool.execute(

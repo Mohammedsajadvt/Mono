@@ -2,8 +2,14 @@ const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
-const { isValidAdminPassword } = require('../middleware/adminAuth');
 const { sendOtpEmail } = require('../config/email');
+const {
+  validateEmail,
+  validatePassword,
+  validateUsername,
+  validateOtp,
+  validateId,
+} = require('../utils/validators');
 
 // Auto-initialize admin tables if not present
 let tablesInitialized = false;
@@ -78,43 +84,38 @@ const adminRegister = async (req, res) => {
     await ensureAdminTables();
     const { username, email, password } = req.body;
 
-    if (!username || !email || !password) {
+    const userVal = validateUsername(username);
+    if (!userVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Username, email address, and password are required.',
+        message: userVal.error,
       });
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanPassword = password.trim();
-
-    if (cleanUsername.length < 3) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Username must be at least 3 characters long.',
+        message: emailVal.error,
       });
     }
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(cleanEmail)) {
+    const passVal = validatePassword(password);
+    if (!passVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide a valid email address.',
+        message: passVal.error,
       });
     }
 
-    if (cleanPassword.length < 6) {
-      return res.status(400).json({
-        success: false,
-        message: 'Password must be at least 6 characters long.',
-      });
-    }
+    const cleanUsername = userVal.sanitized;
+    const cleanEmail = emailVal.sanitized;
+    const cleanPassword = passVal.sanitized;
 
     // Check if username already exists
     const [existingUsers] = await pool.execute(
       'SELECT id FROM admin_users WHERE LOWER(username) = ? LIMIT 1',
-      [cleanUsername]
+      [cleanUsername.toLowerCase()]
     );
     if (existingUsers.length > 0) {
       return res.status(400).json({
@@ -142,12 +143,12 @@ const adminRegister = async (req, res) => {
     // Insert new administrator
     const [result] = await pool.execute(
       'INSERT INTO admin_users (username, email, password_hash, role) VALUES (?, ?, ?, ?)',
-      [username.trim(), cleanEmail, passwordHash, 'admin']
+      [cleanUsername, cleanEmail, passwordHash, 'admin']
     );
 
     const newAdmin = {
       id: result.insertId,
-      username: username.trim(),
+      username: cleanUsername,
       email: cleanEmail,
       role: 'admin',
     };
@@ -175,54 +176,49 @@ const adminLogin = async (req, res) => {
     await ensureAdminTables();
     const { username, password } = req.body;
 
-    if (!password) {
+    if (!username || typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Administrator username or email address is required.',
+      });
+    }
+
+    if (!password || typeof password !== 'string') {
       return res.status(400).json({
         success: false,
         message: 'Password is required to access Mono Admin.',
       });
     }
 
-    const identifier = (username || 'admin').trim().toLowerCase();
+    const identifier = username.trim().toLowerCase();
     const cleanPassword = password.trim();
 
-    // 1. Check TiDB database admin_users table (by username OR email)
-    let dbAuthenticated = false;
-    let adminRecord = null;
+    // Verify against TiDB database admin_users table (by username OR email)
+    const [rows] = await pool.execute(
+      'SELECT id, username, email, password_hash, role FROM admin_users WHERE LOWER(username) = ? OR LOWER(email) = ? LIMIT 1',
+      [identifier, identifier]
+    );
 
-    try {
-      const [rows] = await pool.execute(
-        'SELECT id, username, email, password_hash, role FROM admin_users WHERE LOWER(username) = ? OR LOWER(email) = ? LIMIT 1',
-        [identifier, identifier]
-      );
-
-      if (rows.length > 0) {
-        const matches = await bcrypt.compare(cleanPassword, rows[0].password_hash);
-        if (matches) {
-          dbAuthenticated = true;
-          adminRecord = rows[0];
-        }
-      }
-    } catch (dbErr) {
-      console.warn('[adminLogin] DB check fallback:', dbErr.message);
-    }
-
-    // 2. Allow DB authentication OR master key fallback
-    const isMasterValid = isValidAdminPassword(cleanPassword);
-
-    if (!dbAuthenticated && !isMasterValid) {
+    if (rows.length === 0) {
       return res.status(401).json({
         success: false,
         message: 'Invalid administrator credentials. Please check your username/email and password.',
       });
     }
 
-    const finalUsername = adminRecord ? adminRecord.username : (username || 'admin');
-    const finalEmail = adminRecord ? adminRecord.email : 'admin@mono.app';
+    const adminRecord = rows[0];
+    const isMatch = await bcrypt.compare(cleanPassword, adminRecord.password_hash);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid administrator credentials. Please check your username/email and password.',
+      });
+    }
 
     const token = generateAdminToken({
-      id: adminRecord ? adminRecord.id : 1,
-      username: finalUsername,
-      email: finalEmail,
+      id: adminRecord.id,
+      username: adminRecord.username,
+      email: adminRecord.email,
     });
 
     return res.json({
@@ -230,11 +226,11 @@ const adminLogin = async (req, res) => {
       message: 'Admin authentication successful.',
       token,
       admin: {
-        id: adminRecord ? adminRecord.id : 1,
-        username: finalUsername,
-        email: finalEmail,
+        id: adminRecord.id,
+        username: adminRecord.username,
+        email: adminRecord.email,
         role: 'admin',
-        authMethod: dbAuthenticated ? 'database' : 'master_key',
+        authMethod: 'database',
       },
     });
   } catch (error) {
@@ -252,10 +248,10 @@ const adminForgotPassword = async (req, res) => {
     await ensureAdminTables();
     const { email } = req.body;
 
-    if (!email || !email.trim()) {
+    if (!email || typeof email !== 'string' || !email.trim()) {
       return res.status(400).json({
         success: false,
-        message: 'Please provide your registered admin email address.',
+        message: 'Please provide your registered admin email address or username.',
       });
     }
 
@@ -277,8 +273,8 @@ const adminForgotPassword = async (req, res) => {
     const admin = admins[0];
     const targetEmail = (admin.email || cleanInput).toLowerCase();
 
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(targetEmail)) {
+    const emailCheck = validateEmail(targetEmail);
+    if (!emailCheck.valid) {
       return res.status(400).json({
         success: false,
         message: 'Admin account has no valid email on file. Please contact system owner.',
@@ -298,13 +294,13 @@ const adminForgotPassword = async (req, res) => {
     );
 
     // Send real email via nodemailer using sendOtpEmail
-    const emailResult = await sendOtpEmail(targetEmail, otpCode, admin.username || 'Administrator');
+    await sendOtpEmail(targetEmail, otpCode, admin.username || 'Administrator');
 
+    // Never leak OTP in HTTP response
     return res.json({
       success: true,
       message: `A 6-digit verification code has been sent to ${targetEmail}.`,
       email: targetEmail,
-      ...(emailResult && emailResult.mock ? { devCode: otpCode } : {}),
     });
   } catch (error) {
     console.error('[adminForgotPassword] Error:', error);
@@ -321,29 +317,32 @@ const adminResetPassword = async (req, res) => {
     await ensureAdminTables();
     const { email, code, newPassword } = req.body;
 
-    if (!email || !newPassword) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Email address and new password are required.',
+        message: emailVal.error,
       });
     }
 
-    if (!code || !code.trim()) {
+    const otpVal = validateOtp(code);
+    if (!otpVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter the 6-digit verification code sent to your email.',
+        message: otpVal.error,
       });
     }
 
-    if (newPassword.length < 6) {
+    const passVal = validatePassword(newPassword, 'New password');
+    if (!passVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'New password must be at least 6 characters long.',
+        message: passVal.error,
       });
     }
 
-    const cleanEmail = email.trim().toLowerCase();
-    const cleanCode = code.trim();
+    const cleanEmail = emailVal.sanitized;
+    const cleanCode = otpVal.sanitized;
 
     // Verify confirmation code from database
     const [resets] = await pool.execute(
@@ -373,7 +372,7 @@ const adminResetPassword = async (req, res) => {
 
     // Hash new password with bcrypt
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(newPassword.trim(), salt);
+    const passwordHash = await bcrypt.hash(passVal.sanitized, salt);
 
     // Update password in admin_users
     await pool.execute(
@@ -641,7 +640,14 @@ const getUsers = async (req, res) => {
 // GET /api/admin/users/:id
 const getUserDetails = async (req, res) => {
   try {
-    const { id } = req.params;
+    const idVal = validateId(req.params.id, 'User ID');
+    if (!idVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: idVal.error,
+      });
+    }
+    const id = idVal.value;
 
     const [[user]] = await pool.execute(
       'SELECT id, name, email, created_at, updated_at FROM users WHERE id = ?',

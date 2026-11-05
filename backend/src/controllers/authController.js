@@ -3,6 +3,13 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { seedDefaultCategoriesForUser } = require('./categoryController');
 const { sendOtpEmail } = require('../config/email');
+const {
+  validateEmail,
+  validatePassword,
+  validateName,
+  validateOtp,
+  validateString,
+} = require('../utils/validators');
 
 // Generate JWT Helper
 const generateToken = (user) => {
@@ -26,24 +33,38 @@ const register = async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    if (!name || !email || !password) {
+    const nameVal = validateName(name);
+    if (!nameVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Name, email, and password are required.',
+        message: nameVal.error,
       });
     }
 
-    if (password.length < 6) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long.',
+        message: emailVal.error,
       });
     }
+
+    const passVal = validatePassword(password);
+    if (!passVal.valid) {
+      return res.status(400).json({
+        success: false,
+        message: passVal.error,
+      });
+    }
+
+    const cleanName = nameVal.sanitized;
+    const cleanEmail = emailVal.sanitized;
+    const cleanPassword = passVal.sanitized;
 
     // Check if email already exists
     const [existingUsers] = await pool.execute(
-      'SELECT id FROM users WHERE email = ?',
-      [email.toLowerCase().trim()]
+      'SELECT id FROM users WHERE email = ? LIMIT 1',
+      [cleanEmail]
     );
 
     if (existingUsers.length > 0) {
@@ -55,18 +76,18 @@ const register = async (req, res) => {
 
     // Hash password with bcrypt
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(password, salt);
+    const passwordHash = await bcrypt.hash(cleanPassword, salt);
 
     // Insert user
     const [result] = await pool.execute(
       'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-      [name.trim(), email.toLowerCase().trim(), passwordHash]
+      [cleanName, cleanEmail, passwordHash]
     );
 
     const newUser = {
       id: result.insertId,
-      name: name.trim(),
-      email: email.toLowerCase().trim(),
+      name: cleanName,
+      email: cleanEmail,
       avatar_url: null,
     };
 
@@ -95,17 +116,28 @@ const login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    if (!email || !password) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Email and password are required.',
+        message: emailVal.error,
       });
     }
 
+    if (!password || typeof password !== 'string') {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required.',
+      });
+    }
+
+    const cleanEmail = emailVal.sanitized;
+    const cleanPassword = password.trim();
+
     // Find user by email
     const [users] = await pool.execute(
-      'SELECT id, name, email, password_hash, avatar_url FROM users WHERE email = ?',
-      [email.toLowerCase().trim()]
+      'SELECT id, name, email, password_hash, avatar_url FROM users WHERE email = ? LIMIT 1',
+      [cleanEmail]
     );
 
     if (users.length === 0) {
@@ -118,7 +150,7 @@ const login = async (req, res) => {
     const user = users[0];
 
     // Check password
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -183,9 +215,33 @@ const updateProfile = async (req, res) => {
   try {
     const { name, avatar_url } = req.body;
 
+    let cleanName = null;
+    if (name !== undefined && name !== null) {
+      const nameVal = validateName(name);
+      if (!nameVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: nameVal.error,
+        });
+      }
+      cleanName = nameVal.sanitized;
+    }
+
+    let cleanAvatar = null;
+    if (avatar_url !== undefined && avatar_url !== null) {
+      const avatarVal = validateString(avatar_url, 'Avatar URL', 500);
+      if (!avatarVal.valid) {
+        return res.status(400).json({
+          success: false,
+          message: avatarVal.error,
+        });
+      }
+      cleanAvatar = avatarVal.sanitized;
+    }
+
     await pool.execute(
       'UPDATE users SET name = COALESCE(?, name), avatar_url = COALESCE(?, avatar_url) WHERE id = ?',
-      [name || null, avatar_url || null, req.user.id]
+      [cleanName, cleanAvatar, req.user.id]
     );
 
     const [users] = await pool.execute(
@@ -211,18 +267,19 @@ const updateProfile = async (req, res) => {
 const requestPasswordReset = async (req, res) => {
   try {
     const { email } = req.body;
-    if (!email || !email.trim()) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter your registered email address.',
+        message: emailVal.error,
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
+    const cleanEmail = emailVal.sanitized;
 
     // Check if user exists
     const [users] = await pool.execute(
-      'SELECT id, name, email FROM users WHERE email = ?',
+      'SELECT id, name, email FROM users WHERE email = ? LIMIT 1',
       [cleanEmail]
     );
 
@@ -246,12 +303,12 @@ const requestPasswordReset = async (req, res) => {
     );
 
     // Send email with confirmation code
-    const emailResult = await sendOtpEmail(cleanEmail, otpCode, users[0].name);
+    await sendOtpEmail(cleanEmail, otpCode, users[0].name);
 
+    // Never leak OTP code in API response
     return res.json({
       success: true,
       message: 'A 6-digit verification code has been sent to your email.',
-      ...(emailResult && emailResult.mock ? { devCode: otpCode } : {}),
     });
   } catch (error) {
     console.error('[AuthController.requestPasswordReset] Error:', error);
@@ -267,35 +324,36 @@ const resetPassword = async (req, res) => {
   try {
     const { email, code, newPassword } = req.body;
 
-    if (!email || !newPassword) {
+    const emailVal = validateEmail(email);
+    if (!emailVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Email and new password are required.',
+        message: emailVal.error,
       });
     }
 
-    if (newPassword.length < 6) {
+    const otpVal = validateOtp(code);
+    if (!otpVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Password must be at least 6 characters long.',
+        message: otpVal.error,
       });
     }
 
-    const cleanEmail = email.toLowerCase().trim();
-
-    // Require 6-digit confirmation code
-    if (!code || !code.trim()) {
+    const passVal = validatePassword(newPassword, 'New password');
+    if (!passVal.valid) {
       return res.status(400).json({
         success: false,
-        message: 'Please enter the 6-digit verification code sent to your email.',
+        message: passVal.error,
       });
     }
 
-    const cleanCode = code.trim();
+    const cleanEmail = emailVal.sanitized;
+    const cleanCode = otpVal.sanitized;
 
     // Check if user exists
     const [users] = await pool.execute(
-      'SELECT id, name, email FROM users WHERE email = ?',
+      'SELECT id, name, email FROM users WHERE email = ? LIMIT 1',
       [cleanEmail]
     );
 
@@ -321,7 +379,7 @@ const resetPassword = async (req, res) => {
 
     // Hash new password
     const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(newPassword, salt);
+    const passwordHash = await bcrypt.hash(passVal.sanitized, salt);
 
     // Update user password in TiDB database
     await pool.execute(

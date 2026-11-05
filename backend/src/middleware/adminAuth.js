@@ -1,38 +1,28 @@
 const jwt = require('jsonwebtoken');
 
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'demo';
-
-const isValidAdminPassword = (inputPass) => {
-  if (!inputPass) return false;
-  const clean = inputPass.trim().toLowerCase();
-  const configured = (process.env.ADMIN_PASSWORD || 'demo').trim().toLowerCase();
-  
-  return (
-    clean === configured ||
-    clean === 'demo' ||
-    clean === 'admin demo' ||
-    clean === 'admindemo' ||
-    clean === 'monoadmin2026'
-  );
-};
-
+/**
+ * Admin Authentication Middleware
+ * Strictly requires a cryptographically valid JWT with role: 'admin'.
+ * Backdoor bypass headers and fallback demo passwords have been removed.
+ */
 const verifyAdminToken = (req, res, next) => {
   try {
-    const adminKey = req.headers['x-admin-key'];
-    if (adminKey && isValidAdminPassword(adminKey)) {
-      req.admin = { role: 'admin', authType: 'key' };
-      return next();
-    }
-
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return res.status(401).json({
         success: false,
-        message: 'Admin authorization required. Please provide a valid admin token.',
+        message: 'Admin authorization required. Please sign in to access the administrator console.',
       });
     }
 
     const token = authHeader.split(' ')[1];
+    if (!token || token.trim() === '') {
+      return res.status(401).json({
+        success: false,
+        message: 'Admin authorization token is missing.',
+      });
+    }
+
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       return res.status(500).json({
@@ -54,13 +44,11 @@ const verifyAdminToken = (req, res, next) => {
   } catch (error) {
     return res.status(401).json({
       success: false,
-      message: 'Invalid or expired admin session. Please log in again.',
+      message: 'Invalid or expired administrator session. Please log in again.',
     });
   }
 };
 
 module.exports = {
   verifyAdminToken,
-  ADMIN_PASSWORD,
-  isValidAdminPassword,
 };

@@ -16,3 +16,4 @@ router.get('/app-config', verifyAdminToken, adminController.getAppConfig);
 router.post('/app-config', verifyAdminToken, adminController.updateAppConfig);
 
 module.exports = router;
+

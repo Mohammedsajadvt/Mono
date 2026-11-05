@@ -148,10 +148,11 @@ class _MainNavigationScreenState extends State<MainNavigationScreen> {
 
     return InkWell(
       onTap: () {
-        setState(() {
-          _currentIndex = index;
-        });
-        context.read<ExpenseBloc>().add(LoadExpensesEvent());
+        if (_currentIndex != index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        }
       },
       borderRadius: BorderRadius.circular(16),
       child: Center(

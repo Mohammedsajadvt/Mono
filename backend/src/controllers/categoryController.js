@@ -46,19 +46,68 @@ const seedDefaultCategoriesForUser = async (userId) => {
 const getCategories = async (req, res) => {
   try {
     const userId = req.user.id;
+    const { page, limit, type, all } = req.query;
 
-    // Fetch categories strictly for this authenticated user
+    let baseFilter = 'WHERE user_id = ?';
+    const params = [userId];
+
+    if (type && (type === 'income' || type === 'expense')) {
+      baseFilter += " AND (type = ? OR type = 'both')";
+      params.push(type);
+    }
+
+    if (all === 'false' || (page && limit)) {
+      const pageNum = Math.max(1, parseInt(page, 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+      const offset = (pageNum - 1) * limitNum;
+
+      const [countResult] = await pool.execute(
+        `SELECT COUNT(*) as total FROM categories ${baseFilter}`,
+        params
+      );
+      const total = parseInt(countResult[0].total, 10) || 0;
+
+      const [categories] = await pool.execute(
+        `SELECT id, user_id, name, icon, color, status, type, created_at 
+         FROM categories 
+         ${baseFilter}
+         ORDER BY name ASC
+         LIMIT ${limitNum} OFFSET ${offset}`,
+        params
+      );
+
+      return res.json({
+        success: true,
+        categories,
+        pagination: {
+          page: pageNum,
+          limit: limitNum,
+          total,
+          totalPages: Math.ceil(total / limitNum),
+          hasMore: pageNum < Math.ceil(total / limitNum),
+        },
+      });
+    }
+
+    // Default: Return all categories for this user (fast & sorted)
     const [categories] = await pool.execute(
       `SELECT id, user_id, name, icon, color, status, type, created_at 
        FROM categories 
-       WHERE user_id = ?
+       ${baseFilter}
        ORDER BY name ASC`,
-      [userId]
+      params
     );
 
     return res.json({
       success: true,
       categories,
+      pagination: {
+        page: 1,
+        limit: categories.length,
+        total: categories.length,
+        totalPages: 1,
+        hasMore: false,
+      },
     });
   } catch (error) {
     console.error('[CategoryController.getCategories] Error:', error);

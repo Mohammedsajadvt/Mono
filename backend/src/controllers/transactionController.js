@@ -4,35 +4,53 @@ const pool = require('../config/db');
 const getTransactions = async (req, res) => {
   try {
     const userId = req.user.id;
-    const { type, limit } = req.query;
+    const { type, page, limit, all } = req.query;
 
-    let query = `
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = all === 'true' ? 1000 : Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const offset = (pageNum - 1) * limitNum;
+
+    let baseFilter = "WHERE t.user_id = ? AND (t.status = 'active' OR t.status IS NULL)";
+    const params = [userId];
+
+    if (type && (type === 'income' || type === 'expense')) {
+      baseFilter += ' AND t.type = ?';
+      params.push(type);
+    }
+
+    // 1. Get total count for pagination
+    const [countResult] = await pool.execute(
+      `SELECT COUNT(*) as total FROM transactions t ${baseFilter}`,
+      params
+    );
+    const total = parseInt(countResult[0].total, 10) || 0;
+    const totalPages = Math.ceil(total / limitNum);
+
+    // 2. Fetch paginated slice with optimized index lookup
+    const query = `
       SELECT t.id, t.user_id, t.category_id, t.title, t.type, t.amount, 
              DATE_FORMAT(t.transaction_date, '%Y-%m-%d') as transaction_date,
              t.invoice_url, t.notes, t.created_at,
              c.name as category_name, c.icon as category_icon, c.color as category_color
       FROM transactions t
       LEFT JOIN categories c ON t.category_id = c.id
-      WHERE t.user_id = ? AND (t.status = 'active' OR t.status IS NULL)
+      ${baseFilter}
+      ORDER BY t.transaction_date DESC, t.id DESC
+      LIMIT ${limitNum} OFFSET ${offset}
     `;
-    const params = [userId];
-
-    if (type && (type === 'income' || type === 'expense')) {
-      query += ' AND t.type = ?';
-      params.push(type);
-    }
-
-    query += ' ORDER BY t.transaction_date DESC, t.id DESC';
-
-    if (limit && parseInt(limit, 10) > 0) {
-      query += ` LIMIT ${parseInt(limit, 10)}`;
-    }
 
     const [transactions] = await pool.execute(query, params);
 
     return res.json({
       success: true,
       transactions,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages,
+        hasMore: pageNum < totalPages,
+      },
     });
   } catch (error) {
     console.error('[TransactionController.getTransactions] Error:', error);

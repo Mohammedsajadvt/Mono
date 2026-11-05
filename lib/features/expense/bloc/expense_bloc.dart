@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:mono_app/core/network/api_client.dart';
@@ -89,32 +90,46 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
 
     if (apiClient != null) {
       try {
-        // 1. Fetch categories strictly for logged in user
+        // Parallelize independent queries for maximum performance
+        final results = await Future.wait([
+          apiClient!.dio.get('/categories').catchError((e) {
+            debugPrint('[ExpenseBloc] Categories fetch error: $e');
+            return Response(requestOptions: RequestOptions(path: '/categories'), statusCode: 500);
+          }),
+          apiClient!.dio.get('/transactions/dashboard'),
+          apiClient!.dio.get(
+            '/transactions/statistics',
+            queryParameters: {'period': 'Month', 'type': 'expense'},
+          ).catchError((e) {
+            debugPrint('[ExpenseBloc] Initial statistics fetch error: $e');
+            return Response(requestOptions: RequestOptions(path: '/transactions/statistics'), statusCode: 500);
+          }),
+        ]);
+
+        final catRes = results[0];
+        final dashRes = results[1];
+        final statsRes = results[2];
+
+        // 1. Process categories
         List<CategoryModel> loadedCategories = [];
-        try {
-          final catRes = await apiClient!.dio.get('/categories');
-          if (catRes.statusCode == 200 && catRes.data['categories'] is List) {
-            final list = catRes.data['categories'] as List;
-            loadedCategories = list
-                .map((item) {
-                  return CategoryModel(
-                    id: item['id'].toString(),
-                    name: item['name'] ?? '',
-                    icon: iconFromName(item['icon']?.toString()),
-                    color: colorFromHex(item['color']?.toString()),
-                    status: item['status']?.toString() ?? 'active',
-                    type: item['type']?.toString() ?? 'both',
-                  );
-                })
-                .where((cat) => cat.isActive)
-                .toList();
-          }
-        } catch (e) {
-          debugPrint('[ExpenseBloc] Categories fetch error: $e');
+        if (catRes.statusCode == 200 && catRes.data['categories'] is List) {
+          final list = catRes.data['categories'] as List;
+          loadedCategories = list
+              .map((item) {
+                return CategoryModel(
+                  id: item['id'].toString(),
+                  name: item['name'] ?? '',
+                  icon: iconFromName(item['icon']?.toString()),
+                  color: colorFromHex(item['color']?.toString()),
+                  status: item['status']?.toString() ?? 'active',
+                  type: item['type']?.toString() ?? 'both',
+                );
+              })
+              .where((cat) => cat.isActive)
+              .toList();
         }
 
-        // 2. Fetch dashboard data (Totals, Recent Transactions, Contacts, Top Spendings)
-        final dashRes = await apiClient!.dio.get('/transactions/dashboard');
+        // 2. Process dashboard data (Totals, Recent Transactions, Contacts, Top Spendings)
         if (dashRes.statusCode == 200 && dashRes.data['data'] != null) {
           final d = dashRes.data['data'];
 
@@ -172,22 +187,14 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
               ? (d['totalExpense'] as num).toDouble()
               : (double.tryParse(d['totalExpense']?.toString() ?? '') ?? 0.0);
 
-          // 3. Fetch statistics chart points
+          // 3. Process statistics chart points
           List<ChartPoint> chartPoints = [];
-          try {
-            final statsRes = await apiClient!.dio.get(
-              '/transactions/statistics',
-              queryParameters: {'period': 'Month', 'type': 'expense'},
-            );
-            if (statsRes.statusCode == 200 &&
-                statsRes.data['chartPoints'] is List) {
-              final rawPoints = statsRes.data['chartPoints'] as List;
-              chartPoints = rawPoints
-                  .map((p) => ChartPoint.fromJson(p as Map<String, dynamic>))
-                  .toList();
-            }
-          } catch (e) {
-            debugPrint('[ExpenseBloc] Initial statistics fetch error: $e');
+          if (statsRes.statusCode == 200 &&
+              statsRes.data['chartPoints'] is List) {
+            final rawPoints = statsRes.data['chartPoints'] as List;
+            chartPoints = rawPoints
+                .map((p) => ChartPoint.fromJson(p as Map<String, dynamic>))
+                .toList();
           }
 
           emit(ExpenseLoaded(

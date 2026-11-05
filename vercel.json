@@ -1,0 +1,14 @@
+{
+  "buildCommand": "cd admin-dashboard && npm install && npm run build",
+  "outputDirectory": "admin-dashboard/dist",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://mono-nbt6.onrender.com/api/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}

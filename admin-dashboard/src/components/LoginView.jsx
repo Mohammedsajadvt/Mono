@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Wallet, Lock, UserCheck, ArrowRight, ShieldCheck } from 'lucide-react';
-import { apiFetch, setAdminToken, setAdminUser } from '../api';
+import { API_BASE, setAdminToken, setAdminUser } from '../api';
 
 export default function LoginView({ onLoginSuccess }) {
   const [username, setUsername] = useState('Administrator');
@@ -14,7 +14,7 @@ export default function LoginView({ onLoginSuccess }) {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/admin/login', {
+      const res = await fetch(`${API_BASE}/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username, password }),
@@ -94,3 +94,4 @@ export default function LoginView({ onLoginSuccess }) {
     </div>
   );
 }
+

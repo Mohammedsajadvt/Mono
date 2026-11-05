@@ -1,6 +1,8 @@
 // API Client for Mono Admin React Dashboard
 
-const API_BASE = '/api/admin';
+const rawHost = import.meta.env.VITE_API_URL || '';
+export const API_HOST = rawHost.replace(/\/$/, '');
+export const API_BASE = API_HOST ? `${API_HOST}/api/admin` : '/api/admin';
 
 export function getAdminToken() {
   return localStorage.getItem('mono_admin_token') || '';

@@ -175,3 +175,4 @@ export default function TransactionsView({ showToast }) {
     </div>
   );
 }
+

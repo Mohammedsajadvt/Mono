@@ -1,0 +1,7 @@
+{
+  "name": "mono-workspace",
+  "private": true,
+  "scripts": {
+    "build": "cd admin-dashboard && npm install && npm run build"
+  }
+}

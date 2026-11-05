@@ -2,9 +2,11 @@
 
 <div align="center">
 
-![Mono App Mockup](assets/images/mono_preview_mockup.png)
+<img src="assets/images/mono_preview_mockup.png" alt="Mono App Mockup" width="780" style="max-width: 100%; border-radius: 12px;"/>
 
-**A modern, production-grade personal finance and smart expense tracking ecosystem built with Flutter, BLoC, Node.js, Express, and TiDB Cloud (MySQL).**
+<br/><br/>
+
+**A modern, production-grade personal finance and smart expense tracking ecosystem built with Flutter, BLoC, Node.js, Express, React, and TiDB Cloud (MySQL).**
 
 [![Install on Android](https://img.shields.io/badge/Instant%20Install-BetaDrop-2563EB?logo=android&logoColor=white&style=for-the-badge)](https://betadrop.app/i/qQhg9L)
 [![Download APK](https://img.shields.io/badge/Download%20APK-Google%20Drive-34A853?logo=google-drive&logoColor=white&style=for-the-badge)](https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing)
@@ -82,6 +84,7 @@ Get the latest production-ready build for Android:
 ## 🌐 Live Production Deployment
 
 - **Backend Base URL**: [`https://mono-nbt6.onrender.com/api`](https://mono-nbt6.onrender.com/api)
+- **React Admin Dashboard**: [`https://mono-nbt6.onrender.com/admin/`](https://mono-nbt6.onrender.com/admin/)
 - **Health Check Status**: [`https://mono-nbt6.onrender.com/api/health`](https://mono-nbt6.onrender.com/api/health)
 - **Database Engine**: TiDB Cloud Serverless MySQL (Port 4000 over TLS/SSL)
 

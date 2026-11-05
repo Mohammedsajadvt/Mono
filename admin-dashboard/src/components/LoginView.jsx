@@ -42,7 +42,7 @@ export default function LoginView({ onLoginSuccess }) {
           <div className="brand-badge">
             <Wallet size={26} color="#FFFFFF" />
           </div>
-          <h2>mono <span>react admin</span></h2>
+          <h2>mono <span>admin</span></h2>
           <p>Enterprise Console & Financial Operations</p>
         </div>
 

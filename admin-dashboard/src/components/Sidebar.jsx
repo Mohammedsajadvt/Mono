@@ -27,7 +27,7 @@ export default function Sidebar({ currentTab, onSelectTab, onLogout }) {
           </div>
           <div className="brand-text">
             <h3>mono</h3>
-            <span>React Admin</span>
+            <span>Admin Console</span>
           </div>
         </div>
       </div>

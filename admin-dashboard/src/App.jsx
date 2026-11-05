@@ -37,7 +37,7 @@ export default function App() {
   const handleLoginSuccess = (name) => {
     setAdminName(name || 'Administrator');
     setIsAuthenticated(true);
-    showToast('Welcome to Mono React Admin Console!', 'success');
+    showToast('Welcome to Mono Admin Console!', 'success');
   };
 
   const handleLogout = () => {

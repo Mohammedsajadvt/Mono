@@ -1,5 +1,6 @@
 const nodemailer = require('nodemailer');
 const { sendFirebasePasswordReset } = require('./firebase');
+const { sendOneSignalPush } = require('./onesignal');
 
 function createTransporter() {
   if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
@@ -92,6 +93,21 @@ async function sendOtpEmail(toEmail, otpCode, userName = 'Mono User') {
       deliveryError = err.message;
       console.warn(`[Email] SMTP delivery failed:`, err.message);
     }
+  }
+
+  // 3. Instant Push Notification via OneSignal with the 6-digit code
+  try {
+    const pushRes = await sendOneSignalPush({
+      title: 'Mono Verification Code 🔑',
+      message: `Your 6-digit confirmation code is ${otpCode}. Valid for 15 minutes.`,
+    });
+    if (pushRes.success) {
+      emailDispatched = true;
+      deliveryMethod = deliveryMethod === 'none' ? 'onesignal' : `${deliveryMethod}+onesignal`;
+      console.log(`[Email/Push] OTP push notification dispatched for ${toEmail}`);
+    }
+  } catch (pushErr) {
+    console.warn('[Email/Push] OneSignal OTP push error:', pushErr.message);
   }
 
   // Always log OTP in server logs for testing and debugging

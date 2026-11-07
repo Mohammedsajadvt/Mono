@@ -39,6 +39,32 @@ class AppUpdateService {
     if (Platform.environment.containsKey('FLUTTER_TEST')) return;
     if (silent && _hasPromptedThisSession) return;
 
+    if (!silent && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white),
+              ),
+              const SizedBox(width: 12),
+              Text(
+                'Checking for updates...',
+                style: GoogleFonts.inter(fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+          duration: const Duration(milliseconds: 1200),
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      );
+    }
+
     try {
       final dio = Dio(
         BaseOptions(

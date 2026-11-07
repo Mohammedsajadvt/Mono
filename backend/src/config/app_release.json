@@ -1,12 +1,12 @@
 {
-  "latestVersion": "1.0.2",
-  "buildNumber": 3,
+  "latestVersion": "1.0.3",
+  "buildNumber": 4,
   "downloadUrl": "https://betadrop.app/i/fCW2Qm",
   "guestUrl": "https://betadrop.app/i/fCW2Qm",
   "accountUrl": "https://betadrop.app/i/qQhg9L",
   "driveUrl": "https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing",
-  "releaseNotes": "• 📅 Compact custom date range dialog with quick presets\n• ✏️ Full transaction & category editing with live sync\n• 🔒 6-digit email verification code for password reset\n• ✨ Shimmer loading skeleton UI across all screens\n• ⚡ Faster pagination & responsive gestures",
+  "releaseNotes": "• 🔔 Instant OneSignal Push Notifications\n• 👤 Responsive Profile with popup view & centered sync badge\n• 📅 Monthly Statistics Navigation with next/previous movement\n• ✨ Shimmer Skeleton Loading Effect across dashboard\n• 💰 Formatted Total Balance with Indian currency styling",
   "forceUpdate": false,
-  "updatedAt": "2026-11-05T15:48:00.000Z"
+  "updatedAt": "2026-11-07T12:58:00.000Z"
 }
 

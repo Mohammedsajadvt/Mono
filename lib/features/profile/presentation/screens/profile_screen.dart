@@ -685,32 +685,29 @@ class ProfileScreen extends StatelessWidget {
                               'Mono v${AppUpdateService.currentAppVersion} (Production)',
                         ),
                         const Divider(height: 1, indent: 52),
-                        GestureDetector(
+                        _buildInfoRow(
+                          icon: Icons.system_update_rounded,
+                          label: 'Check for Updates',
                           onTap: () => AppUpdateService.checkUpdate(context,
                               silent: false),
-                          behavior: HitTestBehavior.opaque,
-                          child: _buildInfoRow(
-                            icon: Icons.system_update_rounded,
-                            label: 'Check for Updates',
-                            valueWidget: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Text(
-                                  'Check Now',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    color: AppColors.primary,
-                                  ),
-                                ),
-                                const SizedBox(width: 4),
-                                const Icon(
-                                  Icons.arrow_forward_ios_rounded,
-                                  size: 12,
+                          valueWidget: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                'Check Now',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
                                   color: AppColors.primary,
                                 ),
-                              ],
-                            ),
+                              ),
+                              const SizedBox(width: 4),
+                              const Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 12,
+                                color: AppColors.primary,
+                              ),
+                            ],
                           ),
                         ),
                       ],

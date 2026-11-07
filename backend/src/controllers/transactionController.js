@@ -492,9 +492,6 @@ const getStatistics = async (req, res) => {
       chartPoints,
       topSpendings,
     });
-      chartPoints,
-      topSpendings,
-    });
   } catch (error) {
     console.error('[TransactionController.getStatistics] Error:', error);
     return res.status(500).json({

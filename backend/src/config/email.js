@@ -31,6 +31,7 @@ function createTransporter() {
 async function sendOtpEmail(toEmail, otpCode, userName = 'Mono User') {
   let emailDispatched = false;
   let deliveryMethod = 'none';
+  let deliveryError = null;
 
   // 1. Primary: Firebase Authentication Password Reset Email via HTTPS (port 443)
   // 100% immune to Render cloud firewall / SMTP port blocking!
@@ -40,8 +41,11 @@ async function sendOtpEmail(toEmail, otpCode, userName = 'Mono User') {
       emailDispatched = true;
       deliveryMethod = 'firebase';
       console.log(`[Email] Password reset dispatched via Firebase Auth to ${toEmail}`);
+    } else {
+      deliveryError = fbRes.error;
     }
   } catch (fbErr) {
+    deliveryError = fbErr.message;
     console.warn('[Email] Firebase Auth dispatch error:', fbErr.message);
   }
 
@@ -85,6 +89,7 @@ async function sendOtpEmail(toEmail, otpCode, userName = 'Mono User') {
       deliveryMethod = deliveryMethod === 'firebase' ? 'firebase+smtp' : 'smtp';
       console.log(`[Email] OTP email successfully sent via SMTP to ${toEmail}`);
     } catch (err) {
+      deliveryError = err.message;
       console.warn(`[Email] SMTP delivery failed:`, err.message);
     }
   }
@@ -96,6 +101,7 @@ async function sendOtpEmail(toEmail, otpCode, userName = 'Mono User') {
     sent: emailDispatched,
     method: deliveryMethod,
     code: otpCode,
+    error: deliveryError,
   };
 }
 

@@ -331,9 +331,15 @@ const requestPasswordReset = async (req, res) => {
 
     if (!emailResult.sent) {
       console.error(`[requestPasswordReset] Email delivery failed for ${cleanEmail}:`, emailResult.error);
+      const isConfigError = emailResult.error === 'CONFIGURATION_NOT_FOUND';
+      const userMessage = isConfigError
+        ? `Firebase Authentication is not activated in project 'mono-f7e35' yet. Please visit https://console.firebase.google.com/project/mono-f7e35/authentication, click 'Get started', and enable 'Email/Password' under Sign-in method.`
+        : 'Could not deliver password reset email. Please ensure Firebase Authentication is enabled or email service is active.';
+
       return res.status(502).json({
         success: false,
-        message: 'Could not deliver password reset email. Please ensure Firebase Authentication is enabled or email service is active.',
+        message: userMessage,
+        error: emailResult.error,
       });
     }
 

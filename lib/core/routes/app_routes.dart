@@ -7,6 +7,7 @@ import 'package:mono_app/features/auth/presentation/screens/signup_screen.dart';
 import 'package:mono_app/features/main_nav/presentation/screens/main_navigation_screen.dart';
 import 'package:mono_app/features/add_expense/presentation/screens/add_expense_screen.dart';
 import 'package:mono_app/features/ai_assistant/presentation/screens/ai_assistant_screen.dart';
+import 'package:mono_app/features/home/presentation/screens/all_transactions_screen.dart';
 import 'package:mono_app/features/receipt_scanner/presentation/screens/receipt_preview_screen.dart';
 
 class AppRoutes {
@@ -22,9 +23,15 @@ class AppRoutes {
   static const String addExpense = '/add-expense';
   static const String aiAssistant = '/ai-assistant';
   static const String receiptScanner = '/receipt-scanner';
+  static const String allTransactions = '/all-transactions';
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
+      case allTransactions:
+        return MaterialPageRoute(
+          builder: (context) => const AllTransactionsScreen(),
+          settings: settings,
+        );
       case splash:
         return _fadeRoute(const SplashScreen(), settings);
       case onboarding:

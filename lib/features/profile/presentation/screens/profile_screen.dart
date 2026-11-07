@@ -238,6 +238,9 @@ class ProfileScreen extends StatelessWidget {
                                 errorMessage = null;
                               });
 
+                              final authBloc = context.read<AuthBloc>();
+                              final messenger = ScaffoldMessenger.of(context);
+
                               try {
                                 final client = ApiClient(
                                     secureStorage: SecureStorageService());
@@ -251,28 +254,26 @@ class ProfileScreen extends StatelessWidget {
 
                                 if (res.statusCode == 200 &&
                                     res.data['success'] == true) {
-                                  context.read<AuthBloc>().add(
-                                        UpdateProfileRequested(
-                                          name: newName,
-                                          email: newEmail,
-                                        ),
-                                      );
+                                  authBloc.add(
+                                    UpdateProfileRequested(
+                                      name: newName,
+                                      email: newEmail,
+                                    ),
+                                  );
 
                                   if (ctx.mounted &&
                                       Navigator.of(sheetContext).canPop()) {
                                     Navigator.of(sheetContext).pop();
                                   }
 
-                                  if (context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            'Profile credentials updated successfully!'),
-                                        backgroundColor: Color(0xFF16A34A),
-                                        behavior: SnackBarBehavior.floating,
-                                      ),
-                                    );
-                                  }
+                                  messenger.showSnackBar(
+                                    const SnackBar(
+                                      content: Text(
+                                          'Profile credentials updated successfully!'),
+                                      backgroundColor: Color(0xFF16A34A),
+                                      behavior: SnackBarBehavior.floating,
+                                    ),
+                                  );
                                 } else {
                                   setSheetState(() {
                                     isSubmitting = false;
@@ -588,31 +589,14 @@ class ProfileScreen extends StatelessWidget {
                               icon: Icons.person_outline_rounded,
                               label: 'Full Name',
                               value: name,
+                              onTap: () => _showEditProfileSheet(context),
                             ),
                             const Divider(height: 1, indent: 52),
                             _buildInfoRow(
                               icon: Icons.email_outlined,
                               label: 'Email',
-                              trailing: Container(
-                                padding: const EdgeInsets.symmetric(
-                                    horizontal: 8, vertical: 3),
-                                decoration: BoxDecoration(
-                                  color: const Color(0xFFEFF6FF),
-                                  borderRadius: BorderRadius.circular(6),
-                                  border: Border.all(
-                                      color: const Color(0xFFBFDBFE)),
-                                ),
-                                child: Text(
-                                  'Change',
-                                  style: GoogleFonts.inter(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                    color: const Color(0xFF2563EB),
-                                  ),
-                                ),
-                              ),
-                              onTap: () => _showEditProfileSheet(context),
                               value: email,
+                              onTap: () => _showEditProfileSheet(context),
                             ),
                             const Divider(height: 1, indent: 52),
                             _buildInfoRow(
@@ -779,15 +763,16 @@ class ProfileScreen extends StatelessWidget {
     Widget? trailing,
     VoidCallback? onTap,
   }) {
-    return InkWell(
+    return GestureDetector(
       onTap: onTap,
+      behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(
           children: [
             Container(
-              width: 34,
-              height: 34,
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
                 color: const Color(0xFFF4F6F6),
                 borderRadius: BorderRadius.circular(10),
@@ -795,7 +780,8 @@ class ProfileScreen extends StatelessWidget {
               child: Icon(icon, color: AppColors.primary, size: 18),
             ),
             const SizedBox(width: 14),
-            Expanded(
+            ConstrainedBox(
+              constraints: const BoxConstraints(minWidth: 70, maxWidth: 140),
               child: Text(
                 label,
                 style: GoogleFonts.inter(
@@ -805,17 +791,26 @@ class ProfileScreen extends StatelessWidget {
                 ),
               ),
             ),
-            if (valueWidget != null)
-              valueWidget
-            else if (value != null)
-              Text(
-                value,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF111111),
-                ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: valueWidget ??
+                    (value != null
+                        ? Text(
+                            value,
+                            textAlign: TextAlign.end,
+                            overflow: TextOverflow.ellipsis,
+                            maxLines: 1,
+                            style: GoogleFonts.inter(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w600,
+                              color: const Color(0xFF111111),
+                            ),
+                          )
+                        : const SizedBox.shrink()),
               ),
+            ),
             if (trailing != null) ...[
               const SizedBox(width: 8),
               trailing,

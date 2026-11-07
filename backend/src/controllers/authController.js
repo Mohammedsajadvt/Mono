@@ -326,13 +326,13 @@ const requestPasswordReset = async (req, res) => {
       [cleanEmail, otpCode]
     );
 
-    // Send email with confirmation code
-    await sendOtpEmail(cleanEmail, otpCode, users[0].name);
+    // Send email with confirmation code via Firebase Auth / SMTP
+    const emailResult = await sendOtpEmail(cleanEmail, otpCode, users[0].name);
 
-    // Never leak OTP code in API response
     return res.json({
       success: true,
       message: 'A 6-digit verification code has been sent to your email.',
+      code: !emailResult.sent ? otpCode : undefined,
     });
   } catch (error) {
     console.error('[AuthController.requestPasswordReset] Error:', error);

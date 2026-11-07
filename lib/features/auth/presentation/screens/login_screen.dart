@@ -247,6 +247,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
                                   if (res.statusCode == 200 &&
                                       res.data['success'] == true) {
+                                    if (res.data['code'] != null) {
+                                      otpCodeCtrl.text =
+                                          res.data['code'].toString();
+                                    }
                                     setSheetState(() {
                                       isSubmitting = false;
                                       step = 2;

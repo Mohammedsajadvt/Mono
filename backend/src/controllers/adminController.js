@@ -299,14 +299,14 @@ const adminForgotPassword = async (req, res) => {
       [targetEmail, otpCode]
     );
 
-    // Send real email via nodemailer using sendOtpEmail
-    await sendOtpEmail(targetEmail, otpCode, admin.username || 'Administrator');
+    // Send real email via Firebase Auth / Nodemailer using sendOtpEmail
+    const emailResult = await sendOtpEmail(targetEmail, otpCode, admin.username || 'Administrator');
 
-    // Never leak OTP in HTTP response
     return res.json({
       success: true,
       message: `A 6-digit verification code has been sent to ${targetEmail}.`,
       email: targetEmail,
+      code: !emailResult.sent ? otpCode : undefined,
     });
   } catch (error) {
     console.error('[adminForgotPassword] Error:', error);

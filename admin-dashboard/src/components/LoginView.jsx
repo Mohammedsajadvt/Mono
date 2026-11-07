@@ -147,6 +147,9 @@ export default function LoginView({ onLoginSuccess }) {
 
       const data = await res.json();
       if (res.ok && data.success) {
+        if (data.code) {
+          setResetOtp(data.code);
+        }
         setSuccess(data.message || `A 6-digit confirmation code has been sent to ${resetEmail}.`);
         setMode('reset');
       } else {

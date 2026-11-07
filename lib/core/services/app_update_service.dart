@@ -78,15 +78,26 @@ class AppUpdateService {
       if (response.statusCode == 200 && response.data['success'] == true) {
         final data = response.data;
         final latestVersion = data['latestVersion']?.toString() ?? '1.0.0';
-        final latestBuild = int.tryParse(data['buildNumber']?.toString() ?? '1') ?? 1;
-        final downloadUrl = data['downloadUrl']?.toString() ??
-            'https://betadrop.app/i/qQhg9L';
+        final latestBuild =
+            int.tryParse(data['buildNumber']?.toString() ?? '1') ?? 1;
+        String downloadUrl = data['downloadUrl']?.toString() ?? '';
+        final firebaseStorageUrl =
+            data['firebaseStorageUrl']?.toString() ?? '';
+        final driveUrl = data['driveUrl']?.toString() ?? '';
         final releaseNotes = data['releaseNotes']?.toString() ??
             'Performance optimizations and latest features.';
         final forceUpdate = data['forceUpdate'] == true;
 
+        // Ensure BetaDrop is NEVER used - fallback to Firebase or direct server APK download
+        if (downloadUrl.contains('betadrop.app') || downloadUrl.isEmpty) {
+          downloadUrl = firebaseStorageUrl.isNotEmpty
+              ? firebaseStorageUrl
+              : 'https://mono-nbt6.onrender.com/api/app/download';
+        }
+
         final hasUpdate = isNewerVersion(currentAppVersion, latestVersion) ||
-            (latestVersion == currentAppVersion && latestBuild > currentBuildNumber);
+            (latestVersion == currentAppVersion &&
+                latestBuild > currentBuildNumber);
 
         if (!context.mounted) return;
 
@@ -96,6 +107,7 @@ class AppUpdateService {
             context,
             latestVersion: latestVersion,
             downloadUrl: downloadUrl,
+            driveUrl: driveUrl,
             releaseNotes: releaseNotes,
             forceUpdate: forceUpdate,
           );
@@ -140,6 +152,7 @@ class AppUpdateService {
     BuildContext context, {
     required String latestVersion,
     required String downloadUrl,
+    String? driveUrl,
     required String releaseNotes,
     required bool forceUpdate,
   }) {
@@ -191,12 +204,40 @@ class AppUpdateService {
               ),
             ],
           ),
-          content: Text(
-            'A new version of Mono (v$latestVersion) is available with the latest performance and security enhancements.',
-            style: GoogleFonts.inter(
-              fontSize: 13,
-              color: const Color(0xFF444444),
-              height: 1.4,
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'A new version of Mono (v$latestVersion) is available with the latest performance and security enhancements.',
+                  style: GoogleFonts.inter(
+                    fontSize: 13,
+                    color: const Color(0xFF444444),
+                    height: 1.4,
+                  ),
+                ),
+                if (releaseNotes.trim().isNotEmpty) ...[
+                  const SizedBox(height: 12),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF8FAFC),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFFE2E8F0)),
+                    ),
+                    child: Text(
+                      releaseNotes.trim(),
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        color: const Color(0xFF334155),
+                        height: 1.5,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
           actionsPadding:
@@ -213,48 +254,29 @@ class AppUpdateService {
                   ),
                 ),
               ),
+            if (driveUrl != null && driveUrl.trim().isNotEmpty)
+              OutlinedButton.icon(
+                onPressed: () =>
+                    _launchDownloadUrl(context, dialogCtx, driveUrl),
+                icon: const Icon(Icons.cloud_download_outlined, size: 16),
+                label: Text(
+                  'Google Drive',
+                  style: GoogleFonts.inter(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                style: OutlinedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                ),
+              ),
             ElevatedButton.icon(
-              onPressed: () async {
-                if (Navigator.of(dialogCtx).canPop()) {
-                  Navigator.of(dialogCtx).pop();
-                }
-                final cleanUrl = downloadUrl.trim();
-                final uri = Uri.parse(cleanUrl);
-
-                try {
-                  await Clipboard.setData(ClipboardData(text: cleanUrl));
-                } catch (_) {}
-
-                bool launched = false;
-                try {
-                  launched = await launchUrl(
-                    uri,
-                    mode: LaunchMode.externalApplication,
-                  );
-                } catch (_) {}
-
-                if (!launched) {
-                  try {
-                    launched = await launchUrl(
-                      uri,
-                      mode: LaunchMode.platformDefault,
-                    );
-                  } catch (_) {}
-                }
-
-                if (!launched && context.mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        'Download link copied to clipboard: $cleanUrl',
-                        style: GoogleFonts.inter(),
-                      ),
-                      backgroundColor: AppColors.primary,
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                }
-              },
+              onPressed: () =>
+                  _launchDownloadUrl(context, dialogCtx, downloadUrl),
               icon: const Icon(Icons.download_rounded, size: 18),
               label: Text(
                 'Update Now',
@@ -276,5 +298,57 @@ class AppUpdateService {
         ),
       ),
     );
+  }
+
+  static Future<void> _launchDownloadUrl(
+    BuildContext context,
+    BuildContext dialogCtx,
+    String rawUrl,
+  ) async {
+    if (Navigator.of(dialogCtx).canPop()) {
+      Navigator.of(dialogCtx).pop();
+    }
+
+    String cleanUrl = rawUrl.trim();
+    // Safety check: Never open BetaDrop - replace with direct APK download
+    if (cleanUrl.contains('betadrop.app')) {
+      cleanUrl = 'https://mono-nbt6.onrender.com/api/app/download';
+    }
+
+    final uri = Uri.parse(cleanUrl);
+
+    try {
+      await Clipboard.setData(ClipboardData(text: cleanUrl));
+    } catch (_) {}
+
+    bool launched = false;
+    try {
+      launched = await launchUrl(
+        uri,
+        mode: LaunchMode.externalApplication,
+      );
+    } catch (_) {}
+
+    if (!launched) {
+      try {
+        launched = await launchUrl(
+          uri,
+          mode: LaunchMode.platformDefault,
+        );
+      } catch (_) {}
+    }
+
+    if (!launched && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Download link copied to clipboard: $cleanUrl',
+            style: GoogleFonts.inter(),
+          ),
+          backgroundColor: AppColors.primary,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 }

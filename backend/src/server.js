@@ -48,6 +48,9 @@ app.use(morgan('dev'));
 // Static files for Uploads (Receipt images & attachments)
 app.use('/uploads', express.static(path.join(__dirname, '../public/uploads')));
 
+// Static files for Direct APK Downloads (Firebase / Server hosted releases)
+app.use('/downloads', express.static(path.join(__dirname, '../public/downloads')));
+
 // Static files for Admin Web Dashboard
 app.use('/admin', express.static(path.join(__dirname, '../public/admin')));
 app.get('/admin', (req, res) => {

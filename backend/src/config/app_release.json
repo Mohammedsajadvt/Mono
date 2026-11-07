@@ -1,12 +1,11 @@
 {
   "latestVersion": "1.0.3",
   "buildNumber": 4,
-  "downloadUrl": "https://betadrop.app/i/fCW2Qm",
-  "guestUrl": "https://betadrop.app/i/fCW2Qm",
-  "accountUrl": "https://betadrop.app/i/qQhg9L",
+  "downloadUrl": "https://mono-nbt6.onrender.com/api/app/download",
+  "firebaseStorageUrl": "https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media",
   "driveUrl": "https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing",
-  "releaseNotes": "• 🔔 Instant OneSignal Push Notifications\n• 👤 Responsive Profile with popup view & centered sync badge\n• 📅 Monthly Statistics Navigation with next/previous movement\n• ✨ Shimmer Skeleton Loading Effect across dashboard\n• 💰 Formatted Total Balance with Indian currency styling",
+  "releaseNotes": "• 🔔 Instant OneSignal Push Notifications\n• 👤 Responsive Profile with popup view & centered sync badge\n• 📅 Monthly Statistics Navigation with next/previous movement\n• ✨ Shimmer Skeleton Loading Effect across dashboard\n• 💰 Formatted Total Balance with Indian currency styling\n• 🚀 Direct Firebase & High-Speed APK Updates (Zero BetaDrop)",
   "forceUpdate": false,
-  "updatedAt": "2026-11-07T12:58:00.000Z"
+  "updatedAt": "2026-11-07T14:10:00.000Z"
 }
 

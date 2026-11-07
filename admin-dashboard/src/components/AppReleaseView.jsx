@@ -4,11 +4,11 @@ import { apiFetch } from '../api';
 
 export default function AppReleaseView({ showToast }) {
   const [formData, setFormData] = useState({
-    latestVersion: '1.0.2',
-    buildNumber: 3,
-    downloadUrl: 'https://betadrop.app/i/fCW2Qm',
-    accountUrl: 'https://betadrop.app/i/qQhg9L',
-    driveUrl: '',
+    latestVersion: '1.0.3',
+    buildNumber: 4,
+    downloadUrl: 'https://mono-nbt6.onrender.com/api/app/download',
+    firebaseStorageUrl: 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
+    driveUrl: 'https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing',
     releaseNotes: '',
     forceUpdate: false,
     onesignalRestApiKey: '',
@@ -33,11 +33,11 @@ export default function AppReleaseView({ showToast }) {
       const res = await apiFetch('/app-config');
       if (res.success && res.config) {
         setFormData({
-          latestVersion: res.config.latestVersion || '1.0.2',
-          buildNumber: res.config.buildNumber || 3,
-          downloadUrl: res.config.downloadUrl || 'https://betadrop.app/i/fCW2Qm',
-          accountUrl: res.config.accountUrl || 'https://betadrop.app/i/qQhg9L',
-          driveUrl: res.config.driveUrl || '',
+          latestVersion: res.config.latestVersion || '1.0.3',
+          buildNumber: res.config.buildNumber || 4,
+          downloadUrl: res.config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download',
+          firebaseStorageUrl: res.config.firebaseStorageUrl || 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
+          driveUrl: res.config.driveUrl || 'https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing',
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
           onesignalRestApiKey: res.config.onesignalRestApiKey || '',
@@ -351,28 +351,28 @@ export default function AppReleaseView({ showToast }) {
 
               <div className="form-row">
                 <div className="form-group col-6">
-                  <label>Direct Download Link (BetaDrop / Direct APK)</label>
+                  <label>Direct APK Download Link (Firebase / Server)</label>
                   <input
                     type="url"
                     name="downloadUrl"
                     value={formData.downloadUrl}
                     onChange={handleChange}
-                    placeholder="https://betadrop.app/i/fCW2Qm"
+                    placeholder="https://mono-nbt6.onrender.com/api/app/download"
                     required
                   />
-                  <small>Tapping 'Update Now' in the app immediately opens this link.</small>
+                  <small>Direct APK download link without third-party login walls.</small>
                 </div>
 
                 <div className="form-group col-6">
-                  <label>BetaDrop Account URL</label>
+                  <label>Firebase Storage / App Distribution URL</label>
                   <input
                     type="url"
-                    name="accountUrl"
-                    value={formData.accountUrl}
+                    name="firebaseStorageUrl"
+                    value={formData.firebaseStorageUrl || ''}
                     onChange={handleChange}
-                    placeholder="https://betadrop.app/i/qQhg9L"
+                    placeholder="https://firebasestorage.googleapis.com/..."
                   />
-                  <small>Optional login portal link for testers.</small>
+                  <small>Official Firebase Storage or App Distribution APK link.</small>
                 </div>
               </div>
 

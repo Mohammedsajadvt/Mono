@@ -16,6 +16,8 @@ import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
 import 'package:mono_app/features/home/presentation/screens/all_transactions_screen.dart';
 import 'package:mono_app/features/notifications/presentation/notification_center_modal.dart';
+import 'package:mono_app/features/notifications/data/notification_service.dart';
+import 'package:mono_app/core/services/local_notification_service.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onAddExpensePressed;
@@ -31,6 +33,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   Timer? _clockTimer;
+  Timer? _notificationPollTimer;
+  int? _lastShownNotificationId;
   DateTime _currentTime = DateTime.now();
 
   @override
@@ -43,12 +47,64 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
         setState(() => _currentTime = DateTime.now());
       }
     });
+
+    // Check for recent pushed notifications and start background polling
+    _checkAndShowNewNotification();
+    _notificationPollTimer = Timer.periodic(const Duration(seconds: 40), (_) {
+      _checkAndShowNewNotification();
+    });
+  }
+
+  Future<void> _checkAndShowNewNotification() async {
+    try {
+      final latest = await NotificationService().getLatestNotification();
+      if (latest != null) {
+        if (_lastShownNotificationId != null &&
+            latest.id != _lastShownNotificationId) {
+          // New notification pushed by admin! Pop in Android notification bar!
+          await LocalNotificationService().showNotification(
+            id: latest.id,
+            title: latest.title,
+            body: latest.message,
+            payload: latest.url ?? 'https://mono-nbt6.onrender.com/api/app/download',
+          );
+        }
+        _lastShownNotificationId = latest.id;
+      }
+    } catch (_) {}
+  }
+
+  Future<void> _triggerAppCloseNotification() async {
+    try {
+      final latest = await NotificationService().getLatestNotification();
+      if (latest != null) {
+        await LocalNotificationService().showNotification(
+          id: latest.id,
+          title: latest.title,
+          body: latest.message,
+          payload: latest.url ?? 'https://mono-nbt6.onrender.com/api/app/download',
+        );
+      } else {
+        await LocalNotificationService().showNotification(
+          id: 999,
+          title: 'Mono Financial Assistant 💡',
+          body: 'Don\'t forget to track your expenses to stay within your monthly budget!',
+          payload: 'https://mono-nbt6.onrender.com/api/app/download',
+        );
+      }
+    } catch (_) {}
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed && mounted) {
       setState(() => _currentTime = DateTime.now());
+      _checkAndShowNewNotification();
+    } else if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      // Show notification in Android notification bar when app is closed / minimized
+      _triggerAppCloseNotification();
     }
   }
 
@@ -56,6 +112,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     _clockTimer?.cancel();
+    _notificationPollTimer?.cancel();
     super.dispose();
   }
 

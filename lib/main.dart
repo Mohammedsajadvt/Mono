@@ -12,15 +12,36 @@ import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:mono_app/core/services/local_notification_service.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize OneSignal Push Notifications for all users
+  // 1. Initialize Local System Notification Bar Service
+  try {
+    await LocalNotificationService().initialize();
+  } catch (e) {
+    debugPrint('[LocalNotificationService] Setup error: $e');
+  }
+
+  // 2. Initialize OneSignal Push Notifications for all users
   try {
     OneSignal.Debug.setLogLevel(OSLogLevel.none);
     OneSignal.initialize('16a3ff7b-91c2-4b03-9c56-409c5fee91b6');
     OneSignal.Notifications.requestPermission(true);
+
+    // Ensure notification bar displays even when app is open or backgrounded
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      event.notification.display();
+      LocalNotificationService().showNotification(
+        id: event.notification.notificationId.hashCode,
+        title: event.notification.title ?? 'Mono Notification',
+        body: event.notification.body ?? '',
+        payload: event.notification.launchUrl ??
+            event.notification.additionalData?['url'] ??
+            'https://mono-nbt6.onrender.com/api/app/download',
+      );
+    });
 
     // When user taps on a push notification, open the linked APK / target URL
     OneSignal.Notifications.addClickListener((event) async {

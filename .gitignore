@@ -48,3 +48,27 @@ app.*.map.json
 # Node.js
 **/node_modules/
 node_modules/
+
+# ================= ENVIRONMENT & CREDENTIALS =================
+# Ignore all environment files and secrets across all directories
+.env
+.env.*
+.env.local
+.env.development
+.env.production
+*.env
+**/.env
+**/.env.*
+**/.env.local
+**/.env.production
+!**/.env.example
+!.env.example
+
+# Private Keys, Certificates & Push Credentials
+push_keys.json
+**/push_keys.json
+*.pem
+*.key
+*.cert
+*serviceAccountKey*.json
+*credentials*.json

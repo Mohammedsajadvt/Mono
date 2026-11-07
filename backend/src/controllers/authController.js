@@ -3,6 +3,7 @@ const jwt = require('jsonwebtoken');
 const pool = require('../config/db');
 const { seedDefaultCategoriesForUser } = require('./categoryController');
 const { sendOtpEmail } = require('../config/email');
+const { FIREBASE_API_KEY } = require('../config/firebase');
 const {
   validateEmail,
   validatePassword,
@@ -150,7 +151,36 @@ const login = async (req, res) => {
     const user = users[0];
 
     // Check password
-    const isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
+    let isMatch = await bcrypt.compare(cleanPassword, user.password_hash);
+
+    // If local hash does not match, check if user reset password via Firebase Auth email link
+    if (!isMatch && user.email) {
+      try {
+        const fbRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: user.email.toLowerCase(),
+              password: cleanPassword,
+              returnSecureToken: false,
+            }),
+          }
+        );
+        const fbData = await fbRes.json();
+        if (fbRes.ok && fbData.email) {
+          const salt = await bcrypt.genSalt(10);
+          const newHash = await bcrypt.hash(cleanPassword, salt);
+          await pool.execute('UPDATE users SET password_hash = ? WHERE id = ?', [newHash, user.id]);
+          console.log(`[Auth] Synced Firebase password reset to users table for ${user.email}`);
+          isMatch = true;
+        }
+      } catch (fbErr) {
+        console.warn('[Auth] Firebase Auth sync check failed:', fbErr.message);
+      }
+    }
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -320,9 +350,9 @@ const requestPasswordReset = async (req, res) => {
     // Invalidate any previous codes for this email
     await pool.execute('DELETE FROM password_resets WHERE email = ?', [cleanEmail]);
 
-    // Save code to database with 15-minute expiration
+    // Save code to database with 60-minute expiration
     await pool.execute(
-      'INSERT INTO password_resets (email, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
+      'INSERT INTO password_resets (email, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 60 MINUTE))',
       [cleanEmail, otpCode]
     );
 

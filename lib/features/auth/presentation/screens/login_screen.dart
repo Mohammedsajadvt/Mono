@@ -310,6 +310,33 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ] else ...[
                     // Step 2: OTP Code + New Password
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFF0FDF4),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFFBBF7D0)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.mark_email_read_outlined,
+                              size: 20, color: Color(0xFF16A34A)),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Text(
+                              'Check your Gmail inbox. You can either tap the link in your email to reset directly, or enter your 6-digit confirmation code below.',
+                              style: GoogleFonts.inter(
+                                fontSize: 12,
+                                color: const Color(0xFF15803D),
+                                fontWeight: FontWeight.w500,
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 14),
                     Text(
                       '6-DIGIT VERIFICATION CODE',
                       style: GoogleFonts.inter(

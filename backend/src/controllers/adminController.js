@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
 const { sendOtpEmail } = require('../config/email');
-const { broadcastFirebaseAppUpdate } = require('../config/firebase');
+const { broadcastFirebaseAppUpdate, FIREBASE_API_KEY } = require('../config/firebase');
 const { sendOneSignalPush, DEFAULT_ONESIGNAL_APP_ID } = require('../config/onesignal');
 const {
   validateEmail,
@@ -215,7 +215,36 @@ const adminLogin = async (req, res) => {
     }
 
     const adminRecord = rows[0];
-    const isMatch = await bcrypt.compare(cleanPassword, adminRecord.password_hash);
+    let isMatch = await bcrypt.compare(cleanPassword, adminRecord.password_hash);
+
+    // If local hash does not match, check if admin reset their password via Firebase Auth email link
+    if (!isMatch && adminRecord.email) {
+      try {
+        const fbRes = await fetch(
+          `https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=${FIREBASE_API_KEY}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: adminRecord.email.toLowerCase(),
+              password: cleanPassword,
+              returnSecureToken: false,
+            }),
+          }
+        );
+        const fbData = await fbRes.json();
+        if (fbRes.ok && fbData.email) {
+          const salt = await bcrypt.genSalt(10);
+          const newHash = await bcrypt.hash(cleanPassword, salt);
+          await pool.execute('UPDATE admin_users SET password_hash = ? WHERE id = ?', [newHash, adminRecord.id]);
+          console.log(`[AdminAuth] Synced Firebase password reset to admin_users for ${adminRecord.email}`);
+          isMatch = true;
+        }
+      } catch (fbErr) {
+        console.warn('[AdminAuth] Firebase sync check failed:', fbErr.message);
+      }
+    }
+
     if (!isMatch) {
       return res.status(401).json({
         success: false,
@@ -295,9 +324,9 @@ const adminForgotPassword = async (req, res) => {
     // Invalidate existing reset codes for this email
     await pool.execute('DELETE FROM password_resets WHERE email = ?', [targetEmail]);
 
-    // Save dynamic OTP to password_resets with 15-minute expiration
+    // Save dynamic OTP to password_resets with 60-minute expiration
     await pool.execute(
-      'INSERT INTO password_resets (email, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
+      'INSERT INTO password_resets (email, otp_code, expires_at) VALUES (?, ?, DATE_ADD(NOW(), INTERVAL 60 MINUTE))',
       [targetEmail, otpCode]
     );
 

@@ -219,119 +219,134 @@ class _StatisticsScreenState extends State<StatisticsScreen> {
                   // Monthly Movement Navigator (Previous / Next Month)
                   if (currentPeriod == 'Month') ...[
                     const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFFF8FAFA),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFFE2EBEA)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          IconButton(
-                            icon: const Icon(
-                                Icons.arrow_back_ios_new_rounded,
-                                size: 16),
-                            color: AppColors.primary,
-                            tooltip: 'Previous Month',
-                            onPressed: () {
-                              setState(() {
-                                _selectedMonth = DateTime(
-                                  _selectedMonth.year,
-                                  _selectedMonth.month - 1,
-                                  1,
-                                );
-                              });
-                              context.read<ExpenseBloc>().add(
-                                    ChangeStatisticPeriodEvent(
-                                      'Month',
-                                      month: _selectedMonth.month,
-                                      year: _selectedMonth.year,
-                                    ),
-                                  );
-                            },
+                    Builder(
+                      builder: (context) {
+                        final now = DateTime.now();
+                        final bool isCurrentOrFutureMonth =
+                            _selectedMonth.year > now.year ||
+                                (_selectedMonth.year == now.year &&
+                                    _selectedMonth.month >= now.month);
+
+                        return Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF8FAFA),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: const Color(0xFFE2EBEA)),
                           ),
-                          GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _selectedMonth = DateTime.now();
-                              });
-                              context.read<ExpenseBloc>().add(
-                                    ChangeStatisticPeriodEvent(
-                                      'Month',
-                                      month: _selectedMonth.month,
-                                      year: _selectedMonth.year,
-                                    ),
-                                  );
-                            },
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const Icon(Icons.calendar_month_outlined,
-                                    size: 17, color: AppColors.primary),
-                                const SizedBox(width: 6),
-                                Text(
-                                  DateFormat('MMMM yyyy')
-                                      .format(_selectedMonth),
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1E2929),
-                                  ),
-                                ),
-                                if (_selectedMonth.month !=
-                                        DateTime.now().month ||
-                                    _selectedMonth.year !=
-                                        DateTime.now().year) ...[
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 6, vertical: 2),
-                                    decoration: BoxDecoration(
-                                      color:
-                                          AppColors.primary.withOpacity(0.12),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      'Reset',
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.arrow_back_ios_new_rounded,
+                                    size: 16),
+                                color: AppColors.primary,
+                                tooltip: 'Previous Month',
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedMonth = DateTime(
+                                      _selectedMonth.year,
+                                      _selectedMonth.month - 1,
+                                      1,
+                                    );
+                                  });
+                                  context.read<ExpenseBloc>().add(
+                                        ChangeStatisticPeriodEvent(
+                                          'Month',
+                                          month: _selectedMonth.month,
+                                          year: _selectedMonth.year,
+                                        ),
+                                      );
+                                },
+                              ),
+                              GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedMonth = DateTime.now();
+                                  });
+                                  context.read<ExpenseBloc>().add(
+                                        ChangeStatisticPeriodEvent(
+                                          'Month',
+                                          month: _selectedMonth.month,
+                                          year: _selectedMonth.year,
+                                        ),
+                                      );
+                                },
+                                child: Row(
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const Icon(Icons.calendar_month_outlined,
+                                        size: 17, color: AppColors.primary),
+                                    const SizedBox(width: 6),
+                                    Text(
+                                      DateFormat('MMMM yyyy')
+                                          .format(_selectedMonth),
                                       style: GoogleFonts.inter(
-                                        fontSize: 10,
+                                        fontSize: 14,
                                         fontWeight: FontWeight.w700,
-                                        color: AppColors.primary,
+                                        color: const Color(0xFF1E2929),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ],
-                            ),
+                                    if (_selectedMonth.month != now.month ||
+                                        _selectedMonth.year != now.year) ...[
+                                      const SizedBox(width: 8),
+                                      Container(
+                                        padding: const EdgeInsets.symmetric(
+                                            horizontal: 6, vertical: 2),
+                                        decoration: BoxDecoration(
+                                          color: AppColors.primary
+                                              .withOpacity(0.12),
+                                          borderRadius:
+                                              BorderRadius.circular(6),
+                                        ),
+                                        child: Text(
+                                          'Current',
+                                          style: GoogleFonts.inter(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w700,
+                                            color: AppColors.primary,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                              IconButton(
+                                icon: const Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 16),
+                                color: isCurrentOrFutureMonth
+                                    ? Colors.grey.shade300
+                                    : AppColors.primary,
+                                tooltip: isCurrentOrFutureMonth
+                                    ? 'Reached Current Month'
+                                    : 'Next Month',
+                                onPressed: isCurrentOrFutureMonth
+                                    ? null
+                                    : () {
+                                        setState(() {
+                                          _selectedMonth = DateTime(
+                                            _selectedMonth.year,
+                                            _selectedMonth.month + 1,
+                                            1,
+                                          );
+                                        });
+                                        context.read<ExpenseBloc>().add(
+                                              ChangeStatisticPeriodEvent(
+                                                'Month',
+                                                month: _selectedMonth.month,
+                                                year: _selectedMonth.year,
+                                              ),
+                                            );
+                                      },
+                              ),
+                            ],
                           ),
-                          IconButton(
-                            icon: const Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 16),
-                            color: AppColors.primary,
-                            tooltip: 'Next Month',
-                            onPressed: () {
-                              setState(() {
-                                _selectedMonth = DateTime(
-                                  _selectedMonth.year,
-                                  _selectedMonth.month + 1,
-                                  1,
-                                );
-                              });
-                              context.read<ExpenseBloc>().add(
-                                    ChangeStatisticPeriodEvent(
-                                      'Month',
-                                      month: _selectedMonth.month,
-                                      year: _selectedMonth.year,
-                                    ),
-                                  );
-                            },
-                          ),
-                        ],
-                      ),
+                        );
+                      },
                     ),
                   ],
 

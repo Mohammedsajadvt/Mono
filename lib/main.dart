@@ -11,6 +11,7 @@ import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -20,6 +21,26 @@ void main() async {
     OneSignal.Debug.setLogLevel(OSLogLevel.none);
     OneSignal.initialize('16a3ff7b-91c2-4b03-9c56-409c5fee91b6');
     OneSignal.Notifications.requestPermission(true);
+
+    // When user taps on a push notification, open the linked APK / target URL
+    OneSignal.Notifications.addClickListener((event) async {
+      try {
+        final data = event.notification.additionalData;
+        final targetUrl = event.notification.launchUrl ??
+            data?['url'] ??
+            data?['downloadUrl'] ??
+            'https://mono-nbt6.onrender.com/api/app/download';
+
+        if (targetUrl != null && targetUrl.toString().trim().isNotEmpty) {
+          final uri = Uri.tryParse(targetUrl.toString().trim());
+          if (uri != null) {
+            await launchUrl(uri, mode: LaunchMode.externalApplication);
+          }
+        }
+      } catch (clickErr) {
+        debugPrint('[OneSignal] Notification click handler error: $clickErr');
+      }
+    });
   } catch (e) {
     debugPrint('[OneSignal] Initialization error: $e');
   }

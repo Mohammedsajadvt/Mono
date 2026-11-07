@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { apiFetch, formatINR, formatDate } from '../api';
 import { Edit2, Check, X, Mail, User, Lock, ArrowLeft, ShieldCheck } from 'lucide-react';
 
-export default function UserDetailsModal({ 
-  userId, 
-  initialMode = 'view', 
-  onClose, 
-  showToast, 
-  onUserUpdated 
+export default function UserDetailsModal({
+  userId,
+  initialMode = 'view',
+  onClose,
+  showToast,
+  onUserUpdated
 }) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -109,8 +109,8 @@ export default function UserDetailsModal({
         <div className="modal-header">
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             {isEditing && (
-              <button 
-                className="btn btn-secondary btn-sm" 
+              <button
+                className="btn btn-secondary btn-sm"
                 style={{ padding: '4px 8px' }}
                 onClick={() => { setIsEditing(false); setEditError(''); }}
                 title="Back to details"
@@ -268,15 +268,15 @@ export default function UserDetailsModal({
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                     <h4 style={{ margin: 0 }}>{data.user.name || 'Anonymous User'}</h4>
-                    <span 
-                      style={{ 
-                        fontSize: 11, 
-                        fontWeight: 600, 
-                        color: '#0284C7', 
-                        background: '#E0F2FE', 
-                        padding: '2px 8px', 
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: '#0284C7',
+                        background: '#E0F2FE',
+                        padding: '2px 8px',
                         borderRadius: 6,
-                        cursor: 'pointer' 
+                        cursor: 'pointer'
                       }}
                       onClick={() => setIsEditing(true)}
                       title="Edit this account"

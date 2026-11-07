@@ -1191,6 +1191,9 @@ const sendPushNotification = async (req, res) => {
     }
 
     const config = loadReleaseConfig();
+    const effectiveUrl = (url && url.trim().length > 0)
+      ? url.trim()
+      : (config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download');
     let apiKey = onesignalRestApiKey || config.onesignalRestApiKey || process.env.ONESIGNAL_REST_API_KEY;
 
     if (onesignalRestApiKey && onesignalRestApiKey.trim()) {
@@ -1198,18 +1201,18 @@ const sendPushNotification = async (req, res) => {
       apiKey = onesignalRestApiKey.trim();
     }
 
-    // 1. Dispatch push broadcast via Firebase Cloud Messaging
+    // 1. Dispatch push broadcast via Firebase Cloud Messaging (linked to APK)
     const fcmResult = await broadcastFirebaseNotification({
       title: title.trim(),
       message: message.trim(),
-      url: url ? url.trim() : undefined,
+      url: effectiveUrl,
     });
 
-    // 2. Dispatch push broadcast via OneSignal
+    // 2. Dispatch push broadcast via OneSignal (linked to APK)
     const pushResult = await sendOneSignalPush({
       title: title.trim(),
       message: message.trim(),
-      url: url ? url.trim() : undefined,
+      url: effectiveUrl,
       apiKey,
     });
 

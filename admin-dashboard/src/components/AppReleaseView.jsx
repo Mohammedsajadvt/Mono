@@ -17,9 +17,9 @@ export default function AppReleaseView({ showToast }) {
 
   // Push Notification state
   const [pushData, setPushData] = useState({
-    title: 'Mono Financial Update 🚀',
-    message: 'Track your daily expenses, monitor your balance, and stay within budget!',
-    url: '',
+    title: 'Mono Update Ready 🚀',
+    message: 'A new version of Mono is live! Tap to download and install the latest update.',
+    url: 'https://mono-nbt6.onrender.com/api/app/download',
   });
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState(null);
@@ -29,14 +29,20 @@ export default function AppReleaseView({ showToast }) {
       setLoading(true);
       const res = await apiFetch('/app-config');
       if (res.success && res.config) {
+        const download = res.config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download';
         setFormData({
           latestVersion: res.config.latestVersion || '1.0.3',
           buildNumber: res.config.buildNumber || 4,
-          downloadUrl: res.config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download',
+          downloadUrl: download,
           firebaseStorageUrl: res.config.firebaseStorageUrl || 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
         });
+
+        setPushData(prev => ({
+          ...prev,
+          url: prev.url || download,
+        }));
       }
     } catch (err) {
       showToast(err.message, 'error');

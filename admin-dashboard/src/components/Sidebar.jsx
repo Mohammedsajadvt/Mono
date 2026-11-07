@@ -15,7 +15,7 @@ export default function Sidebar({ currentTab, onSelectTab, onLogout }) {
     { id: 'users', label: 'Users', icon: Users },
     { id: 'transactions', label: 'Transactions', icon: ArrowLeftRight },
     { id: 'categories', label: 'Categories', icon: Tags },
-    { id: 'releases', label: 'App Updates', icon: Rocket },
+    { id: 'releases', label: 'Push & Updates', icon: Rocket },
   ];
 
   return (

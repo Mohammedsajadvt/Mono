@@ -10,9 +10,20 @@ import 'package:mono_app/features/auth/bloc/auth_state.dart';
 import 'package:mono_app/features/expense/bloc/expense_bloc.dart';
 import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/receipt_scanner/bloc/receipt_bloc.dart';
+import 'package:onesignal_flutter/onesignal_flutter.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize OneSignal Push Notifications for all users
+  try {
+    OneSignal.Debug.setLogLevel(OSLogLevel.none);
+    OneSignal.initialize('16a3ff7b-91c2-4b03-9c56-409c5fee91b6');
+    OneSignal.Notifications.requestPermission(true);
+  } catch (e) {
+    debugPrint('[OneSignal] Initialization error: $e');
+  }
+
   runApp(const MonoApp());
 }
 

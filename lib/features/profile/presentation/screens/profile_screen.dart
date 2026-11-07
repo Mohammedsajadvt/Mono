@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:mono_app/core/network/api_client.dart';
 import 'package:mono_app/core/storage/secure_storage_service.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -589,14 +590,24 @@ class ProfileScreen extends StatelessWidget {
                               icon: Icons.person_outline_rounded,
                               label: 'Full Name',
                               value: name,
-                              onTap: () => _showEditProfileSheet(context),
+                              onView: () => _showDetailPopup(
+                                context,
+                                title: 'Full Name',
+                                value: name,
+                                icon: Icons.person_outline_rounded,
+                              ),
                             ),
                             const Divider(height: 1, indent: 52),
                             _buildInfoRow(
                               icon: Icons.email_outlined,
                               label: 'Email',
                               value: email,
-                              onTap: () => _showEditProfileSheet(context),
+                              onView: () => _showDetailPopup(
+                                context,
+                                title: 'Email Address',
+                                value: email,
+                                icon: Icons.email_outlined,
+                              ),
                             ),
                             const Divider(height: 1, indent: 52),
                             _buildInfoRow(
@@ -648,14 +659,16 @@ class ProfileScreen extends StatelessWidget {
                           icon: Icons.cloud_done_outlined,
                           label: 'Database Sync',
                           valueWidget: Container(
+                            alignment: Alignment.center,
                             padding: const EdgeInsets.symmetric(
-                                horizontal: 8, vertical: 3),
+                                horizontal: 10, vertical: 5),
                             decoration: BoxDecoration(
                               color: const Color(0xFFE0F2F1),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: Text(
                               'Live MySQL Connected',
+                              textAlign: TextAlign.center,
                               style: GoogleFonts.inter(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600,
@@ -755,6 +768,137 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
+  void _showDetailPopup(
+    BuildContext context, {
+    required String title,
+    required String value,
+    required IconData icon,
+  }) {
+    showDialog(
+      context: context,
+      builder: (dialogCtx) {
+        return AlertDialog(
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          contentPadding: const EdgeInsets.fromLTRB(20, 20, 20, 16),
+          title: Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: AppColors.primary, size: 20),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.inter(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF1E293B),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8FAFC),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE2E8F0)),
+                ),
+                child: SelectableText(
+                  value,
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: const Color(0xFF0F172A),
+                    height: 1.4,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: () {
+                      Clipboard.setData(ClipboardData(text: value));
+                      Navigator.of(dialogCtx).pop();
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text('$title copied to clipboard!'),
+                          duration: const Duration(seconds: 2),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.copy_rounded,
+                        size: 15, color: AppColors.primary),
+                    label: Text(
+                      'Copy',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppColors.primary),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 8),
+                    ),
+                  ),
+                  const Spacer(),
+                  TextButton.icon(
+                    onPressed: () {
+                      Navigator.of(dialogCtx).pop();
+                      _showEditProfileSheet(context);
+                    },
+                    icon: const Icon(Icons.edit_rounded,
+                        size: 15, color: Color(0xFF64748B)),
+                    label: Text(
+                      'Edit',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: const Color(0xFF64748B),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogCtx).pop(),
+              child: Text(
+                'Close',
+                style: GoogleFonts.inter(
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
+                ),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   Widget _buildInfoRow({
     required IconData icon,
     required String label,
@@ -762,9 +906,10 @@ class ProfileScreen extends StatelessWidget {
     Widget? valueWidget,
     Widget? trailing,
     VoidCallback? onTap,
+    VoidCallback? onView,
   }) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: onTap ?? onView,
       behavior: HitTestBehavior.opaque,
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
@@ -779,9 +924,9 @@ class ProfileScreen extends StatelessWidget {
               ),
               child: Icon(icon, color: AppColors.primary, size: 18),
             ),
-            const SizedBox(width: 14),
-            ConstrainedBox(
-              constraints: const BoxConstraints(minWidth: 70, maxWidth: 140),
+            const SizedBox(width: 12),
+            SizedBox(
+              width: 95,
               child: Text(
                 label,
                 style: GoogleFonts.inter(
@@ -789,6 +934,8 @@ class ProfileScreen extends StatelessWidget {
                   fontWeight: FontWeight.w500,
                   color: const Color(0xFF444444),
                 ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 8),
@@ -811,6 +958,25 @@ class ProfileScreen extends StatelessWidget {
                         : const SizedBox.shrink()),
               ),
             ),
+            if (onView != null) ...[
+              const SizedBox(width: 8),
+              GestureDetector(
+                onTap: onView,
+                behavior: HitTestBehavior.opaque,
+                child: Container(
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF1F5F9),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(
+                    Icons.visibility_outlined,
+                    size: 15,
+                    color: AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
             if (trailing != null) ...[
               const SizedBox(width: 8),
               trailing,

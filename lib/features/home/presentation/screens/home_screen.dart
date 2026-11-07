@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:mono_app/core/constants/app_colors.dart';
 import 'package:mono_app/core/routes/app_routes.dart';
 import 'package:mono_app/core/widgets/curved_header_painter.dart';
@@ -68,6 +69,19 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
     } else {
       return 'Good night,';
     }
+  }
+
+  String _formatBalance(double amount) {
+    final formatter = NumberFormat('#,##,##0.00', 'en_IN');
+    if (amount < 0) {
+      return '- ₹ ${formatter.format(amount.abs())}';
+    }
+    return '₹ ${formatter.format(amount)}';
+  }
+
+  String _formatCurrency(double amount) {
+    final formatter = NumberFormat('#,##,##0.00', 'en_IN');
+    return '₹ ${formatter.format(amount)}';
   }
 
   @override
@@ -284,7 +298,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
                             // Balance Amount (Dynamic from MySQL)
                             Text(
-                              '₹ ${balance.toStringAsFixed(2)}',
+                              _formatBalance(balance),
                               style: GoogleFonts.inter(
                                 fontSize: 30,
                                 fontWeight: FontWeight.w700,
@@ -328,7 +342,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                         Text(
-                                          '₹ ${income.toStringAsFixed(2)}',
+                                          _formatCurrency(income),
                                           style: GoogleFonts.inter(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,
@@ -370,7 +384,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                           ),
                                         ),
                                         Text(
-                                          '₹ ${expense.toStringAsFixed(2)}',
+                                          _formatCurrency(expense),
                                           style: GoogleFonts.inter(
                                             fontSize: 16,
                                             fontWeight: FontWeight.w600,

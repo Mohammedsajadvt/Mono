@@ -4,6 +4,7 @@ const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
 const { sendOtpEmail } = require('../config/email');
 const { broadcastFirebaseAppUpdate } = require('../config/firebase');
+const { sendOneSignalPush, DEFAULT_ONESIGNAL_APP_ID } = require('../config/onesignal');
 const {
   validateEmail,
   validatePassword,
@@ -1112,17 +1113,84 @@ const broadcastPushUpdate = async (req, res) => {
   try {
     const config = loadReleaseConfig();
     const fcmResult = await broadcastFirebaseAppUpdate(config);
+
+    // Also broadcast to OneSignal
+    const oneSignalResult = await sendOneSignalPush({
+      title: `Mono Update v${config.latestVersion} Available! 🚀`,
+      message: `A new version of Mono is now live with enhanced features. Tap to update!`,
+      url: config.downloadUrl || undefined,
+      apiKey: config.onesignalRestApiKey,
+    });
+
     return res.json({
       success: true,
-      message: `Push update notification broadcasted to all devices via Firebase! (v${config.latestVersion})`,
+      message: `Push update notification broadcasted to all devices! (v${config.latestVersion})`,
       config,
       fcm: fcmResult,
+      oneSignal: oneSignalResult,
     });
   } catch (error) {
     console.error('[broadcastPushUpdate] Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to broadcast push update: ' + error.message,
+    });
+  }
+};
+
+// POST /api/admin/send-push-notification
+const sendPushNotification = async (req, res) => {
+  try {
+    const { title, message, url, onesignalRestApiKey } = req.body;
+
+    if (!title || !title.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notification title is required.',
+      });
+    }
+
+    if (!message || !message.trim()) {
+      return res.status(400).json({
+        success: false,
+        message: 'Notification message is required.',
+      });
+    }
+
+    const config = loadReleaseConfig();
+    let apiKey = onesignalRestApiKey || config.onesignalRestApiKey || process.env.ONESIGNAL_REST_API_KEY;
+
+    if (onesignalRestApiKey && onesignalRestApiKey.trim()) {
+      saveReleaseConfig({ onesignalRestApiKey: onesignalRestApiKey.trim() });
+      apiKey = onesignalRestApiKey.trim();
+    }
+
+    const pushResult = await sendOneSignalPush({
+      title: title.trim(),
+      message: message.trim(),
+      url: url ? url.trim() : undefined,
+      apiKey,
+    });
+
+    if (pushResult.success) {
+      return res.json({
+        success: true,
+        message: pushResult.message || 'Push notification sent to all app devices successfully!',
+        recipients: pushResult.recipients,
+        id: pushResult.id,
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        message: pushResult.message || 'Failed to send notification via OneSignal.',
+        error: pushResult.error,
+      });
+    }
+  } catch (error) {
+    console.error('[sendPushNotification] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to process push notification request: ' + error.message,
     });
   }
 };
@@ -1143,4 +1211,5 @@ module.exports = {
   getAppConfig,
   updateAppConfig,
   broadcastPushUpdate,
+  sendPushNotification,
 };

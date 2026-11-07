@@ -377,14 +377,18 @@ class ExpenseBloc extends Bloc<ExpenseEvent, ExpenseState> {
 
       if (apiClient != null) {
         try {
+          final queryParams = <String, dynamic>{
+            'period': event.period,
+            'type': current.selectedStatType == TransactionType.income
+                ? 'income'
+                : 'expense',
+          };
+          if (event.month != null) queryParams['month'] = event.month;
+          if (event.year != null) queryParams['year'] = event.year;
+
           final res = await apiClient!.dio.get(
             '/transactions/statistics',
-            queryParameters: {
-              'period': event.period,
-              'type': current.selectedStatType == TransactionType.income
-                  ? 'income'
-                  : 'expense',
-            },
+            queryParameters: queryParams,
           );
           if (res.statusCode == 200) {
             final raw = res.data['topSpendings'] as List? ?? [];

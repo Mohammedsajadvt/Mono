@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Satellite, Save, RotateCcw, Send, Bell } from 'lucide-react';
+import { Rocket, Satellite, Save, RotateCcw, Send, Bell, Key, ExternalLink } from 'lucide-react';
 import { apiFetch } from '../api';
 
 export default function AppReleaseView({ showToast }) {
@@ -11,10 +11,21 @@ export default function AppReleaseView({ showToast }) {
     driveUrl: '',
     releaseNotes: '',
     forceUpdate: false,
+    onesignalRestApiKey: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [broadcasting, setBroadcasting] = useState(false);
+
+  // Push Notification state
+  const [pushData, setPushData] = useState({
+    title: 'Mono Financial Update 🚀',
+    message: 'Track your daily expenses, monitor your balance, and stay within budget!',
+    url: '',
+    onesignalRestApiKey: '',
+  });
+  const [sendingPush, setSendingPush] = useState(false);
+  const [pushResult, setPushResult] = useState(null);
 
   const loadConfig = async () => {
     try {
@@ -29,7 +40,15 @@ export default function AppReleaseView({ showToast }) {
           driveUrl: res.config.driveUrl || '',
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
+          onesignalRestApiKey: res.config.onesignalRestApiKey || '',
         });
+
+        if (res.config.onesignalRestApiKey) {
+          setPushData(prev => ({
+            ...prev,
+            onesignalRestApiKey: res.config.onesignalRestApiKey,
+          }));
+        }
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -47,6 +66,14 @@ export default function AppReleaseView({ showToast }) {
     setFormData((prev) => ({
       ...prev,
       [name]: type === 'checkbox' ? checked : value,
+    }));
+  };
+
+  const handlePushChange = (e) => {
+    const { name, value } = e.target;
+    setPushData((prev) => ({
+      ...prev,
+      [name]: value,
     }));
   };
 
@@ -81,7 +108,7 @@ export default function AppReleaseView({ showToast }) {
       const res = await apiFetch('/broadcast-push-update', { method: 'POST' });
       if (res.success) {
         showToast(
-          `Firebase push notification broadcasted to all devices! (v${formData.latestVersion})`,
+          `Push update notification broadcasted to all devices via OneSignal & Firebase! (v${formData.latestVersion})`,
           'success'
         );
       } else {
@@ -94,13 +121,191 @@ export default function AppReleaseView({ showToast }) {
     }
   };
 
+  const handleSendCustomPush = async (e) => {
+    e.preventDefault();
+    if (!pushData.title.trim() || !pushData.message.trim()) {
+      showToast('Please enter both title and message for the push notification.', 'error');
+      return;
+    }
+
+    setSendingPush(true);
+    setPushResult(null);
+    try {
+      const res = await apiFetch('/send-push-notification', {
+        method: 'POST',
+        body: JSON.stringify({
+          title: pushData.title,
+          message: pushData.message,
+          url: pushData.url || undefined,
+          onesignalRestApiKey: pushData.onesignalRestApiKey || formData.onesignalRestApiKey || undefined,
+        }),
+      });
+
+      if (res.success) {
+        setPushResult({
+          success: true,
+          recipients: res.recipients,
+          id: res.id,
+        });
+        showToast(res.message || 'Push notification sent to all app users successfully!', 'success');
+      } else {
+        setPushResult({
+          success: false,
+          error: res.message || 'OneSignal send failure',
+        });
+        showToast(res.message || 'Failed to dispatch push notification.', 'error');
+      }
+    } catch (err) {
+      setPushResult({
+        success: false,
+        error: err.message,
+      });
+      showToast(err.message, 'error');
+    } finally {
+      setSendingPush(false);
+    }
+  };
+
   return (
-    <div className="view-section">
+    <div className="view-section" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+      {/* CARD 1: Push Notification Broadcaster */}
       <div className="card">
         <div className="card-header">
           <div>
             <h3 className="card-title">
-              <Rocket size={18} /> App Version & Push Update Manager
+              <Bell size={18} color="var(--primary-color)" /> Send Push Notification to All Users
+            </h3>
+            <p className="card-subtitle">
+              Broadcast instant push alerts to every user who has installed the Mono mobile app
+            </p>
+          </div>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <span className="badge badge-teal">
+              OneSignal App: 16a3ff7b...
+            </span>
+          </div>
+        </div>
+
+        <div className="card-body">
+          <form onSubmit={handleSendCustomPush}>
+            <div className="form-group">
+              <label>Notification Title</label>
+              <input
+                type="text"
+                name="title"
+                value={pushData.title}
+                onChange={handlePushChange}
+                placeholder="e.g. 📢 Important Update / Monthly Savings Reminder"
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label>Message Content</label>
+              <textarea
+                name="message"
+                rows="3"
+                value={pushData.message}
+                onChange={handlePushChange}
+                placeholder="Enter notification message seen on users' notification bar..."
+                required
+              ></textarea>
+            </div>
+
+            <div className="form-row">
+              <div className="form-group col-6">
+                <label>Action URL (Optional)</label>
+                <input
+                  type="url"
+                  name="url"
+                  value={pushData.url}
+                  onChange={handlePushChange}
+                  placeholder="https://betadrop.app/i/fCW2Qm"
+                />
+                <small>Optional web link opened when the user taps the push notification.</small>
+              </div>
+
+              <div className="form-group col-6">
+                <label>
+                  OneSignal REST API Key{' '}
+                  <a
+                    href="https://dashboard.onesignal.com/apps/16a3ff7b-91c2-4b03-9c56-409c5fee91b6/settings/keys-and-ids"
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{ fontSize: 11, color: 'var(--primary-color)', marginLeft: 6, textDecoration: 'none' }}
+                  >
+                    Get API Key <ExternalLink size={10} style={{ display: 'inline', verticalAlign: 'middle' }} />
+                  </a>
+                </label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type="password"
+                    name="onesignalRestApiKey"
+                    value={pushData.onesignalRestApiKey}
+                    onChange={handlePushChange}
+                    placeholder="Enter OneSignal REST API Key (os_v2_app_...)"
+                  />
+                </div>
+                <small>Saved securely in configuration so you only need to enter it once.</small>
+              </div>
+            </div>
+
+            {pushResult && (
+              <div
+                style={{
+                  padding: '12px 16px',
+                  borderRadius: 10,
+                  marginBottom: 16,
+                  backgroundColor: pushResult.success ? '#ECFDF5' : '#FEF2F2',
+                  border: `1px solid ${pushResult.success ? '#A7F3D0' : '#FECACA'}`,
+                  color: pushResult.success ? '#065F46' : '#991B1B',
+                  fontSize: 13,
+                }}
+              >
+                {pushResult.success ? (
+                  <div>
+                    <strong>✓ Push Broadcast Successful!</strong> Notification ID: <code>{pushResult.id}</code> (Delivered to active subscriptions)
+                  </div>
+                ) : (
+                  <div>
+                    <strong>✗ Push Send Failed:</strong> {pushResult.error}
+                    <div style={{ marginTop: 4, fontSize: 12 }}>
+                      Tip: Ensure your OneSignal REST API Key is entered from{' '}
+                      <a
+                        href="https://dashboard.onesignal.com/apps/16a3ff7b-91c2-4b03-9c56-409c5fee91b6/settings/keys-and-ids"
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{ color: '#991B1B', textDecoration: 'underline' }}
+                      >
+                        OneSignal Settings &gt; Keys &amp; IDs
+                      </a>.
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="form-actions" style={{ display: 'flex', gap: 10 }}>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                disabled={sendingPush}
+                style={{ backgroundColor: '#2563EB', borderColor: '#2563EB' }}
+              >
+                <Send size={16} />
+                <span>{sendingPush ? 'Broadcasting Push...' : '🚀 Send Push to All Users (OneSignal)'}</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      {/* CARD 2: App Version & Release Configuration */}
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <h3 className="card-title">
+              <Rocket size={18} /> App Version &amp; Release Manager
             </h3>
             <p className="card-subtitle">
               Configure latest APK releases pushed to devices when users tap 'Check Now'
@@ -222,10 +427,10 @@ export default function AppReleaseView({ showToast }) {
                   style={{ backgroundColor: '#EA580C', borderColor: '#EA580C' }}
                   onClick={handleBroadcastPush}
                   disabled={saving || broadcasting}
-                  title="Push notification to all devices via Firebase Cloud Messaging"
+                  title="Push notification to all devices via OneSignal and Firebase"
                 >
                   <Send size={16} />
-                  <span>{broadcasting ? 'Broadcasting via Firebase...' : 'Push Update via Firebase'}</span>
+                  <span>{broadcasting ? 'Broadcasting Push...' : 'Broadcast Release to All Devices'}</span>
                 </button>
                 <button
                   type="button"

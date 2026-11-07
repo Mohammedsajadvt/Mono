@@ -68,7 +68,7 @@ export default function App() {
     users: 'User Account Directory',
     transactions: 'Global Transactions Ledger',
     categories: 'Categories & Allocations',
-    releases: 'App Updates & Release Center',
+    releases: 'Push Notifications & App Releases',
   };
 
   return (

@@ -61,13 +61,7 @@ export default function OverviewView({ onNavigate, showToast }) {
   }, []);
 
   if (loading || !data) {
-    return (
-      <div className="view-section">
-        <p className="text-muted" style={{ padding: '40px', textAlign: 'center' }}>
-          Loading dashboard metrics...
-        </p>
-      </div>
-    );
+    return <OverviewSkeleton />;
   }
 
   const { stats, recentTransactions, recentUsers, topCategories, monthlyTrend, system } = data;
@@ -615,6 +609,76 @@ export default function OverviewView({ onNavigate, showToast }) {
               </div>
             </div>
           )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function OverviewSkeleton() {
+  return (
+    <div className="view-section">
+      {/* Top Banner Skeleton */}
+      <div className="skeleton-card" style={{ marginBottom: 20, padding: 18 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div>
+            <div className="skeleton skeleton-title" style={{ width: 220, height: 20, marginBottom: 8 }} />
+            <div className="skeleton skeleton-text" style={{ width: 340, height: 14 }} />
+          </div>
+          <div className="skeleton skeleton-badge" style={{ width: 140, height: 28 }} />
+        </div>
+      </div>
+
+      {/* 4 Lifetime Stat Cards */}
+      <div className="stats-grid">
+        {[1, 2, 3, 4].map((i) => (
+          <div key={i} className="stat-card" style={{ display: 'flex', alignItems: 'center' }}>
+            <div className="skeleton skeleton-circle" style={{ width: 44, height: 44, marginRight: 14 }} />
+            <div className="stat-card-content" style={{ flex: 1 }}>
+              <div className="skeleton skeleton-text" style={{ width: '60%', height: 12 }} />
+              <div className="skeleton skeleton-title" style={{ width: '85%', height: 24, margin: '6px 0' }} />
+              <div className="skeleton skeleton-text" style={{ width: '40%', height: 11 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Monthly Performance Section */}
+      <div style={{ marginTop: 24, marginBottom: 12 }}>
+        <div className="skeleton skeleton-title" style={{ width: 280, height: 18 }} />
+      </div>
+
+      <div className="monthly-grid">
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="month-feature-card">
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
+              <div className="skeleton skeleton-text" style={{ width: 120, height: 16 }} />
+              <div className="skeleton skeleton-badge" style={{ width: 80, height: 18 }} />
+            </div>
+            <div className="skeleton skeleton-title" style={{ width: '70%', height: 28, margin: '14px 0' }} />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginTop: 16 }}>
+              <div className="skeleton skeleton-text" style={{ height: 36 }} />
+              <div className="skeleton skeleton-text" style={{ height: 36 }} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Grid */}
+      <div className="charts-grid" style={{ marginTop: 24 }}>
+        <div className="chart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div className="skeleton skeleton-title" style={{ width: 200, height: 18 }} />
+            <div className="skeleton skeleton-badge" style={{ width: 90, height: 22 }} />
+          </div>
+          <div className="skeleton" style={{ width: '100%', height: 240, borderRadius: 12 }} />
+        </div>
+        <div className="chart-card">
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+            <div className="skeleton skeleton-title" style={{ width: 180, height: 18 }} />
+            <div className="skeleton skeleton-badge" style={{ width: 70, height: 22 }} />
+          </div>
+          <div className="skeleton" style={{ width: '100%', height: 240, borderRadius: 12 }} />
         </div>
       </div>
     </div>

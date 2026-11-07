@@ -22,11 +22,13 @@ class AddExpenseEvent extends ExpenseEvent {
 
 class ChangeStatisticPeriodEvent extends ExpenseEvent {
   final String period; // 'Day', 'Week', 'Month', 'Year'
+  final int? month;
+  final int? year;
 
-  const ChangeStatisticPeriodEvent(this.period);
+  const ChangeStatisticPeriodEvent(this.period, {this.month, this.year});
 
   @override
-  List<Object?> get props => [period];
+  List<Object?> get props => [period, month, year];
 }
 
 class ChangeStatisticTypeEvent extends ExpenseEvent {

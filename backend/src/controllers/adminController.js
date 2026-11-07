@@ -1174,7 +1174,7 @@ const broadcastPushUpdate = async (req, res) => {
 // POST /api/admin/send-push-notification
 const sendPushNotification = async (req, res) => {
   try {
-    const { title, message, url, onesignalRestApiKey } = req.body;
+    const { title, message, url, scheduledAt, onesignalRestApiKey } = req.body;
 
     if (!title || !title.trim()) {
       return res.status(400).json({
@@ -1191,9 +1191,9 @@ const sendPushNotification = async (req, res) => {
     }
 
     const config = loadReleaseConfig();
-    const effectiveUrl = (url && url.trim().length > 0)
+    const effectiveUrl = (url && typeof url === 'string' && url.trim().length > 0)
       ? url.trim()
-      : (config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download');
+      : null;
     let apiKey = onesignalRestApiKey || config.onesignalRestApiKey || process.env.ONESIGNAL_REST_API_KEY;
 
     if (onesignalRestApiKey && onesignalRestApiKey.trim()) {
@@ -1201,12 +1201,28 @@ const sendPushNotification = async (req, res) => {
       apiKey = onesignalRestApiKey.trim();
     }
 
+    // Check if delivery is scheduled for the future
+    let isScheduled = false;
+    let scheduledDate = null;
+    let scheduledDbVal = null;
+
+    if (scheduledAt) {
+      const dt = new Date(scheduledAt);
+      if (!isNaN(dt.getTime()) && dt.getTime() > Date.now()) {
+        isScheduled = true;
+        scheduledDate = dt;
+        scheduledDbVal = dt.toISOString().slice(0, 19).replace('T', ' ');
+      }
+    }
+
+    const notificationStatus = isScheduled ? 'scheduled' : 'sent';
+
     // 0. Persist pushed notification in database so mobile app & admin can list it
     let savedNotification = null;
     try {
       const [insertRes] = await pool.execute(
-        'INSERT INTO notifications (title, message, url, type, status) VALUES (?, ?, ?, ?, ?)',
-        [title.trim(), message.trim(), effectiveUrl, 'broadcast', 'sent']
+        'INSERT INTO notifications (title, message, url, type, status, scheduled_at) VALUES (?, ?, ?, ?, ?, ?)',
+        [title.trim(), message.trim(), effectiveUrl, 'broadcast', notificationStatus, scheduledDbVal]
       );
       savedNotification = {
         id: insertRes.insertId,
@@ -1214,34 +1230,41 @@ const sendPushNotification = async (req, res) => {
         message: message.trim(),
         url: effectiveUrl,
         type: 'broadcast',
-        status: 'sent',
+        status: notificationStatus,
+        scheduled_at: scheduledDbVal,
         created_at: new Date().toISOString(),
       };
     } catch (dbErr) {
       console.warn('[sendPushNotification] DB insert warning:', dbErr.message);
     }
 
-    // 1. Dispatch push broadcast via Firebase Cloud Messaging (linked to APK)
-    const fcmResult = await broadcastFirebaseNotification({
-      title: title.trim(),
-      message: message.trim(),
-      url: effectiveUrl,
-    });
+    // 1. Dispatch push broadcast via Firebase Cloud Messaging (only for immediate sends)
+    let fcmResult = null;
+    if (!isScheduled) {
+      fcmResult = await broadcastFirebaseNotification({
+        title: title.trim(),
+        message: message.trim(),
+        url: effectiveUrl,
+      });
+    }
 
-    // 2. Dispatch push broadcast via OneSignal (linked to APK)
+    // 2. Dispatch/schedule push broadcast via OneSignal
     const pushResult = await sendOneSignalPush({
       title: title.trim(),
       message: message.trim(),
       url: effectiveUrl,
+      sendAfter: isScheduled ? scheduledDate.toISOString() : undefined,
       apiKey,
     });
 
     if (pushResult.success) {
       return res.json({
         success: true,
-        message: pushResult.message || 'Push notification sent to all app devices successfully!',
+        message: pushResult.message || (isScheduled ? 'Push notification scheduled successfully!' : 'Push notification sent to all app devices successfully!'),
         recipients: pushResult.recipients,
         id: pushResult.id,
+        scheduled: isScheduled,
+        scheduledAt: scheduledDbVal,
         fcm: fcmResult,
         notification: savedNotification,
       });
@@ -1249,7 +1272,11 @@ const sendPushNotification = async (req, res) => {
       // If OneSignal API key is not yet set, but Firebase or DB delivered
       return res.json({
         success: true,
-        message: 'Push notification recorded in database and broadcasted to devices!',
+        message: isScheduled
+          ? 'Push notification scheduled in database!'
+          : 'Push notification recorded in database and broadcasted to devices!',
+        scheduled: isScheduled,
+        scheduledAt: scheduledDbVal,
         fcm: fcmResult,
         oneSignal: pushResult,
         notification: savedNotification,

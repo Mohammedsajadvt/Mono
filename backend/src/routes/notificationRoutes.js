@@ -4,12 +4,13 @@ const pool = require('../config/db');
 
 /**
  * Public Mobile App Endpoint: Get all active notifications
+ * Filters out notifications scheduled for the future until their release time arrives.
  * GET /api/notifications
  */
 router.get('/', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, title, message, url, type, status, created_at FROM notifications ORDER BY id DESC LIMIT 50'
+      'SELECT id, title, message, url, type, status, created_at, scheduled_at FROM notifications WHERE (scheduled_at IS NULL OR scheduled_at <= NOW()) ORDER BY id DESC LIMIT 50'
     );
     return res.json({
       success: true,
@@ -33,7 +34,7 @@ router.get('/', async (req, res) => {
 router.get('/latest', async (req, res) => {
   try {
     const [rows] = await pool.execute(
-      'SELECT id, title, message, url, type, status, created_at FROM notifications ORDER BY id DESC LIMIT 1'
+      'SELECT id, title, message, url, type, status, created_at, scheduled_at FROM notifications WHERE (scheduled_at IS NULL OR scheduled_at <= NOW()) ORDER BY id DESC LIMIT 1'
     );
     return res.json({
       success: true,
@@ -50,4 +51,3 @@ router.get('/latest', async (req, res) => {
 });
 
 module.exports = router;
-

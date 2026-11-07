@@ -22,6 +22,7 @@ try {
  * @param {string} options.title - Notification title
  * @param {string} options.message - Notification body
  * @param {string} [options.url] - Optional target URL to open on click
+ * @param {string|Date} [options.sendAfter] - Optional ISO-8601 string or date for scheduled delivery
  * @param {Object} [options.data] - Custom metadata payload
  * @param {string} [options.appId] - OneSignal App ID
  * @param {string} [options.apiKey] - OneSignal REST API Key
@@ -31,6 +32,7 @@ async function sendOneSignalPush({
   title,
   message,
   url,
+  sendAfter,
   data = {},
   appId,
   apiKey,
@@ -56,8 +58,22 @@ async function sendOneSignalPush({
     },
   };
 
+  // Only attach action URL if explicitly provided and non-empty
   if (url && typeof url === 'string' && url.trim().length > 0) {
     payload.url = url.trim();
+  }
+
+  // Support future scheduled delivery through OneSignal's send_after parameter
+  if (sendAfter) {
+    try {
+      const scheduledTime = new Date(sendAfter);
+      if (!isNaN(scheduledTime.getTime()) && scheduledTime.getTime() > Date.now()) {
+        payload.send_after = scheduledTime.toISOString();
+        console.log(`[OneSignal] Push scheduled for delivery at: ${payload.send_after}`);
+      }
+    } catch (e) {
+      console.warn('[OneSignal] Invalid sendAfter date provided:', sendAfter, e.message);
+    }
   }
 
   const headers = {
@@ -81,12 +97,17 @@ async function sendOneSignalPush({
     const resData = await res.json();
 
     if (res.ok && resData.id) {
-      console.log(`[OneSignal] Push sent successfully! ID: ${resData.id}, Recipients: ${resData.recipients || 0}`);
+      console.log(`[OneSignal] Push dispatched successfully! ID: ${resData.id}, Recipients: ${resData.recipients || 0}`);
+      const isScheduled = !!payload.send_after;
       return {
         success: true,
         id: resData.id,
         recipients: resData.recipients || 0,
-        message: `Push notification dispatched to ${resData.recipients || 'all'} registered devices!`,
+        scheduled: isScheduled,
+        sendAfter: payload.send_after || null,
+        message: isScheduled
+          ? `Push notification successfully scheduled for ${new Date(payload.send_after).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' })}!`
+          : `Push notification dispatched to ${resData.recipients || 'all'} registered devices!`,
       };
     } else {
       console.warn('[OneSignal] Response status', res.status, resData);
@@ -111,4 +132,3 @@ module.exports = {
   DEFAULT_ONESIGNAL_APP_ID,
   sendOneSignalPush,
 };
-

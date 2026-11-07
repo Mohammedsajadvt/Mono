@@ -1,6 +1,41 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Satellite, Save, RotateCcw, Send, Bell, Trash2 } from 'lucide-react';
+import { Rocket, Satellite, Save, RotateCcw, Send, Bell, Trash2, Clock, Calendar, CheckCircle2 } from 'lucide-react';
 import { apiFetch } from '../api';
+
+const getTomorrowPreset = (hour = 9, minute = 0) => {
+  const d = new Date();
+  d.setDate(d.getDate() + 1);
+  d.setHours(hour, minute, 0, 0);
+  return d;
+};
+
+const toDatetimeLocalValue = (date) => {
+  const pad = (n) => String(n).padStart(2, '0');
+  const y = date.getFullYear();
+  const m = pad(date.getMonth() + 1);
+  const d = pad(date.getDate());
+  const h = pad(date.getHours());
+  const min = pad(date.getMinutes());
+  return `${y}-${m}-${d}T${h}:${min}`;
+};
+
+const formatDateTime = (dateStr) => {
+  if (!dateStr) return 'N/A';
+  try {
+    const d = new Date(dateStr);
+    return d.toLocaleString('en-IN', {
+      weekday: 'short',
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+  } catch (_) {
+    return String(dateStr);
+  }
+};
 
 export default function AppReleaseView({ showToast }) {
   const [formData, setFormData] = useState({
@@ -19,14 +54,30 @@ export default function AppReleaseView({ showToast }) {
   const [pushData, setPushData] = useState({
     title: 'Mono Update Ready 🚀',
     message: 'A new version of Mono is live! Tap to download and install the latest update.',
-    url: 'https://mono-nbt6.onrender.com/api/app/download',
   });
+  const [deliveryMode, setDeliveryMode] = useState('now'); // 'now' | 'tomorrow_morning' | 'tomorrow_evening' | 'custom'
+  const [customSchedule, setCustomSchedule] = useState(() => toDatetimeLocalValue(getTomorrowPreset(9, 0)));
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState(null);
 
   // Notification History List state
   const [notificationsList, setNotificationsList] = useState([]);
   const [loadingNotifications, setLoadingNotifications] = useState(true);
+
+  // Helpers for scheduling presets
+  const tomorrowDate = getTomorrowPreset(9, 0);
+  const tomorrowDayName = tomorrowDate.toLocaleDateString('en-US', { weekday: 'long' });
+
+  const getScheduledDate = () => {
+    if (deliveryMode === 'now') return null;
+    if (deliveryMode === 'tomorrow_morning') return getTomorrowPreset(9, 0);
+    if (deliveryMode === 'tomorrow_evening') return getTomorrowPreset(18, 0);
+    if (deliveryMode === 'custom' && customSchedule) {
+      const parsed = new Date(customSchedule);
+      if (!isNaN(parsed.getTime())) return parsed;
+    }
+    return null;
+  };
 
   const loadConfig = async () => {
     try {
@@ -42,11 +93,6 @@ export default function AppReleaseView({ showToast }) {
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
         });
-
-        setPushData(prev => ({
-          ...prev,
-          url: prev.url || download,
-        }));
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -154,6 +200,12 @@ export default function AppReleaseView({ showToast }) {
       return;
     }
 
+    const scheduledDate = getScheduledDate();
+    if (deliveryMode !== 'now' && (!scheduledDate || scheduledDate.getTime() <= Date.now())) {
+      showToast('Scheduled delivery time must be set in the future.', 'error');
+      return;
+    }
+
     setSendingPush(true);
     setPushResult(null);
     try {
@@ -162,7 +214,7 @@ export default function AppReleaseView({ showToast }) {
         body: JSON.stringify({
           title: pushData.title,
           message: pushData.message,
-          url: pushData.url || undefined,
+          scheduledAt: scheduledDate ? scheduledDate.toISOString() : undefined,
         }),
       });
 
@@ -171,8 +223,13 @@ export default function AppReleaseView({ showToast }) {
           success: true,
           recipients: res.recipients,
           id: res.id,
+          scheduled: res.scheduled,
+          scheduledAt: res.scheduledAt,
         });
-        showToast(res.message || 'Push notification sent to all app users successfully!', 'success');
+        showToast(
+          res.message || (scheduledDate ? 'Push notification scheduled successfully!' : 'Push notification dispatched to all app users!'),
+          'success'
+        );
         loadNotifications();
       } else {
         setPushResult({
@@ -194,7 +251,7 @@ export default function AppReleaseView({ showToast }) {
 
   return (
     <div className="view-section" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-      {/* CARD 1: Push Notification Broadcaster */}
+      {/* CARD 1: Push Notification Broadcaster & Scheduler */}
       <div className="card">
         <div className="card-header">
           <div>
@@ -202,12 +259,12 @@ export default function AppReleaseView({ showToast }) {
               <Bell size={18} color="var(--primary-color)" /> Send Push Notification to All Users
             </h3>
             <p className="card-subtitle">
-              Broadcast instant push alerts to every user who has installed the Mono mobile app
+              Broadcast instant push alerts or schedule future notifications for every user on the Mono app
             </p>
           </div>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <span className="badge badge-teal">
-              OneSignal App: 16a3ff7b...
+              OneSignal Active
             </span>
           </div>
         </div>
@@ -238,16 +295,136 @@ export default function AppReleaseView({ showToast }) {
               ></textarea>
             </div>
 
-            <div className="form-group" style={{ marginTop: 8 }}>
-              <label>Action URL (Optional)</label>
-              <input
-                type="url"
-                name="url"
-                value={pushData.url}
-                onChange={handlePushChange}
-                placeholder="https://mono-nbt6.onrender.com/api/app/download"
-              />
-              <small>Optional link or website opened when the user taps the push notification.</small>
+            {/* Delivery Timing Scheduler */}
+            <div className="form-group" style={{ marginTop: 16 }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8, fontWeight: 600 }}>
+                <Clock size={15} color="var(--primary)" /> Delivery Timing &amp; Schedule
+              </label>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('now')}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${deliveryMode === 'now' ? '#2563EB' : '#E2E8F0'}`,
+                    background: deliveryMode === 'now' ? '#EFF6FF' : '#FFFFFF',
+                    color: deliveryMode === 'now' ? '#1D4ED8' : '#475569',
+                    fontWeight: deliveryMode === 'now' ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>⚡ Send Immediately (Now)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('tomorrow_morning')}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${deliveryMode === 'tomorrow_morning' ? '#D97706' : '#E2E8F0'}`,
+                    background: deliveryMode === 'tomorrow_morning' ? '#FEF3C7' : '#FFFFFF',
+                    color: deliveryMode === 'tomorrow_morning' ? '#92400E' : '#475569',
+                    fontWeight: deliveryMode === 'tomorrow_morning' ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>🌅 Tomorrow {tomorrowDayName} (9:00 AM)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('tomorrow_evening')}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${deliveryMode === 'tomorrow_evening' ? '#D97706' : '#E2E8F0'}`,
+                    background: deliveryMode === 'tomorrow_evening' ? '#FEF3C7' : '#FFFFFF',
+                    color: deliveryMode === 'tomorrow_evening' ? '#92400E' : '#475569',
+                    fontWeight: deliveryMode === 'tomorrow_evening' ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <span>🌆 Tomorrow {tomorrowDayName} (6:00 PM)</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeliveryMode('custom')}
+                  style={{
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${deliveryMode === 'custom' ? '#2563EB' : '#E2E8F0'}`,
+                    background: deliveryMode === 'custom' ? '#EFF6FF' : '#FFFFFF',
+                    color: deliveryMode === 'custom' ? '#1D4ED8' : '#475569',
+                    fontWeight: deliveryMode === 'custom' ? 600 : 500,
+                    fontSize: 12.5,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  <Calendar size={14} />
+                  <span>Custom Date &amp; Time</span>
+                </button>
+              </div>
+
+              {deliveryMode === 'custom' && (
+                <div style={{ marginTop: 12 }}>
+                  <label style={{ fontSize: 12, color: 'var(--text-secondary)', display: 'block', marginBottom: 6 }}>
+                    Select Custom Date &amp; Time for Notification Delivery:
+                  </label>
+                  <input
+                    type="datetime-local"
+                    min={toDatetimeLocalValue(new Date())}
+                    value={customSchedule}
+                    onChange={(e) => setCustomSchedule(e.target.value)}
+                    style={{ maxWidth: 300 }}
+                    required={deliveryMode === 'custom'}
+                  />
+                  <small style={{ display: 'block', marginTop: 4 }}>
+                    OneSignal will automatically broadcast the notification to users at this scheduled date and time.
+                  </small>
+                </div>
+              )}
+
+              {deliveryMode !== 'now' && getScheduledDate() && (
+                <div
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 8,
+                    backgroundColor: '#FFFBEB',
+                    border: '1px solid #FDE68A',
+                    color: '#92400E',
+                    fontSize: 12.5,
+                    marginTop: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 8,
+                  }}
+                >
+                  <Clock size={16} color="#D97706" style={{ flexShrink: 0 }} />
+                  <div>
+                    <strong>Scheduled Delivery:</strong> Push notification will automatically be delivered on{' '}
+                    <strong>{formatDateTime(getScheduledDate())}</strong>.
+                  </div>
+                </div>
+              )}
             </div>
 
             {pushResult && (
@@ -255,6 +432,7 @@ export default function AppReleaseView({ showToast }) {
                 style={{
                   padding: '12px 16px',
                   borderRadius: 10,
+                  marginTop: 16,
                   marginBottom: 16,
                   backgroundColor: pushResult.success ? '#ECFDF5' : '#FEF2F2',
                   border: `1px solid ${pushResult.success ? '#A7F3D0' : '#FECACA'}`,
@@ -264,28 +442,40 @@ export default function AppReleaseView({ showToast }) {
               >
                 {pushResult.success ? (
                   <div>
-                    <strong>✓ Push Broadcast Successful!</strong> Notification ID: <code>{pushResult.id}</code> (Delivered to active subscriptions)
+                    <strong>✓ {pushResult.scheduled ? 'Push Broadcast Scheduled!' : 'Push Broadcast Successful!'}</strong>{' '}
+                    {pushResult.id ? <span>Notification ID: <code>{pushResult.id}</code></span> : null}
+                    {pushResult.scheduledAt && (
+                      <div style={{ marginTop: 4, fontSize: 12 }}>
+                        ⏰ Will be delivered on: <strong>{formatDateTime(pushResult.scheduledAt)}</strong>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>
                     <strong>✗ Push Send Failed:</strong> {pushResult.error}
-                    <div style={{ marginTop: 4, fontSize: 12 }}>
-                      Tip: Push keys are configured on the backend. You can check delivery logs in the OneSignal dashboard.
-                    </div>
                   </div>
                 )}
               </div>
             )}
 
-            <div className="form-actions" style={{ display: 'flex', gap: 10 }}>
+            <div className="form-actions" style={{ display: 'flex', gap: 10, marginTop: 18 }}>
               <button
                 type="submit"
                 className="btn btn-primary"
                 disabled={sendingPush}
-                style={{ backgroundColor: '#2563EB', borderColor: '#2563EB' }}
+                style={{
+                  backgroundColor: deliveryMode === 'now' ? '#2563EB' : '#D97706',
+                  borderColor: deliveryMode === 'now' ? '#2563EB' : '#D97706',
+                }}
               >
-                <Send size={16} />
-                <span>{sendingPush ? 'Broadcasting Push...' : '🚀 Send Push to All Users (OneSignal)'}</span>
+                {deliveryMode === 'now' ? <Send size={16} /> : <Clock size={16} />}
+                <span>
+                  {sendingPush
+                    ? 'Processing Push...'
+                    : deliveryMode === 'now'
+                    ? '🚀 Send Push to All Users (OneSignal)'
+                    : `⏰ Schedule Push for ${tomorrowDayName}`}
+                </span>
               </button>
             </div>
           </form>
@@ -296,11 +486,16 @@ export default function AppReleaseView({ showToast }) {
       <div className="card">
         <div className="card-header">
           <div>
-            <h3 className="card-title">
-              <Bell size={18} /> Pushed Notification History &amp; App Device Feed
-            </h3>
-            <p className="card-subtitle">
-              All broadcasts delivered to users' phones and displayed in the in-app Notification Center
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="card-title" style={{ margin: 0 }}>
+                <Bell size={18} /> Pushed Notification History &amp; App Device Feed
+              </h3>
+              <span className="badge badge-gray">
+                {notificationsList.length} total
+              </span>
+            </div>
+            <p className="card-subtitle" style={{ marginTop: 4 }}>
+              All broadcasts delivered or scheduled for users' devices and displayed in the in-app Notification Center
             </p>
           </div>
           <button
@@ -327,81 +522,93 @@ export default function AppReleaseView({ showToast }) {
             </div>
           ) : (
             <div className="table-responsive">
-              <table className="data-table">
+              <table className="table">
                 <thead>
                   <tr>
-                    <th style={{ width: 60 }}>#ID</th>
+                    <th style={{ width: 85 }}>#ID</th>
                     <th>Notification Details</th>
-                    <th>Linked Action URL</th>
-                    <th>Status</th>
-                    <th>Dispatched At</th>
-                    <th style={{ textAlign: 'right' }}>Actions</th>
+                    <th style={{ width: 220 }}>Delivery / Schedule Time</th>
+                    <th style={{ width: 140 }}>Status</th>
+                    <th style={{ width: 95, textAlign: 'right' }}>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {notificationsList.map((item) => (
-                    <tr key={item.id}>
-                      <td><strong>#{item.id}</strong></td>
-                      <td>
-                        <div>
-                          <strong style={{ color: 'var(--text-primary)', fontSize: 14 }}>{item.title}</strong>
-                          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
-                            {item.message}
-                          </p>
-                        </div>
-                      </td>
-                      <td>
-                        {item.url ? (
-                          <a
-                            href={item.url}
-                            target="_blank"
-                            rel="noreferrer"
+                  {notificationsList.map((item) => {
+                    const isItemScheduled = item.status === 'scheduled' || (item.scheduled_at && new Date(item.scheduled_at) > new Date());
+                    return (
+                      <tr key={item.id}>
+                        <td>
+                          <span className="badge badge-id">#{item.id}</span>
+                        </td>
+                        <td>
+                          <div>
+                            <div style={{ color: 'var(--text-primary)', fontSize: 13.5, fontWeight: 700 }}>
+                              {item.title}
+                            </div>
+                            <div style={{ margin: '3px 0 0', fontSize: 12.5, color: 'var(--text-secondary)', lineHeight: 1.45, maxWidth: 520 }}>
+                              {item.message}
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          {isItemScheduled && item.scheduled_at ? (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#D97706', fontWeight: 600, fontSize: 12.5 }}>
+                                <Clock size={13} />
+                                <span>{formatDateTime(item.scheduled_at)}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                Scheduled
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 5, color: 'var(--text-primary)', fontSize: 12.5, fontWeight: 500 }}>
+                                <CheckCircle2 size={13} color="#059669" />
+                                <span>{formatDateTime(item.created_at)}</span>
+                              </div>
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                                Dispatched immediately
+                              </div>
+                            </div>
+                          )}
+                        </td>
+                        <td>
+                          {isItemScheduled ? (
+                            <span className="badge badge-scheduled">
+                              <Clock size={11} /> Scheduled
+                            </span>
+                          ) : (
+                            <span className="badge badge-sent">
+                              <CheckCircle2 size={11} /> Sent / Active
+                            </span>
+                          )}
+                        </td>
+                        <td style={{ textAlign: 'right' }}>
+                          <button
+                            type="button"
+                            className="btn btn-outline-danger btn-sm"
                             style={{
-                              color: 'var(--primary)',
-                              fontSize: 12.5,
-                              textDecoration: 'none',
-                              wordBreak: 'break-all',
+                              padding: '5px 9px',
+                              color: '#DC2626',
+                              borderColor: '#FECACA',
+                              background: '#FEF2F2',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 4,
                             }}
+                            onClick={() => handleDeleteNotification(item.id)}
+                            title="Delete notification from history & device feed"
                           >
-                            {item.url}
-                          </a>
-                        ) : (
-                          <span className="text-muted" style={{ fontSize: 12 }}>None</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className="badge badge-teal">
-                          ✓ Sent / Active
-                        </span>
-                      </td>
-                      <td>
-                        <span className="text-muted" style={{ fontSize: 12.5 }}>
-                          {new Date(item.created_at).toLocaleString('en-IN', {
-                            dateStyle: 'medium',
-                            timeStyle: 'short',
-                          })}
-                        </span>
-                      </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <button
-                          type="button"
-                          className="btn btn-outline-danger btn-sm"
-                          style={{
-                            padding: '4px 8px',
-                            color: '#DC2626',
-                            borderColor: '#FECACA',
-                            background: '#FEF2F2',
-                            borderRadius: 6,
-                            cursor: 'pointer',
-                          }}
-                          onClick={() => handleDeleteNotification(item.id)}
-                          title="Delete notification"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
+                            <Trash2 size={13} />
+                            <span style={{ fontSize: 11 }}>Delete</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -556,4 +763,3 @@ export default function AppReleaseView({ showToast }) {
     </div>
   );
 }
-

@@ -8,7 +8,6 @@ const defaultRelease = {
   buildNumber: 4,
   downloadUrl: 'https://mono-nbt6.onrender.com/api/app/download',
   firebaseStorageUrl: 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
-  driveUrl: 'https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing',
   releaseNotes: '• 🔔 Instant OneSignal Push Notifications\n• 👤 Responsive Profile with popup view & centered sync badge\n• 📅 Monthly Statistics Navigation with next/previous movement\n• ✨ Shimmer Skeleton Loading Effect across dashboard\n• 💰 Formatted Total Balance with Indian currency styling\n• 🚀 Direct Firebase & High-Speed APK Updates (Zero BetaDrop)',
   forceUpdate: false,
 };
@@ -77,16 +76,16 @@ const downloadApk = async (req, res) => {
       return res.sendFile(apkPath);
     }
 
-    // Fallback: If not stored locally, redirect to Firebase Storage or Google Drive
+    // Fallback: If not stored locally, redirect to Firebase Storage or downloadUrl
     const redirectUrl =
-      config.firebaseStorageUrl || config.driveUrl || config.downloadUrl;
+      config.firebaseStorageUrl || config.downloadUrl;
     if (redirectUrl) {
       return res.redirect(redirectUrl);
     }
 
     return res.status(404).json({
       success: false,
-      message: 'Release APK not found. Please download via Firebase or Google Drive.',
+      message: 'Release APK not found. Please download via Firebase Storage.',
     });
   } catch (error) {
     console.error('[downloadApk] Error:', error);

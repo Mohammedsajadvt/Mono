@@ -1107,22 +1107,20 @@ const updateAppConfig = async (req, res) => {
       latestVersion,
       buildNumber,
       downloadUrl,
-      guestUrl,
-      accountUrl,
-      driveUrl,
+      firebaseStorageUrl,
       releaseNotes,
       forceUpdate,
+      onesignalRestApiKey,
     } = req.body;
 
     const updated = saveReleaseConfig({
-      latestVersion: latestVersion || '1.0.2',
-      buildNumber: parseInt(buildNumber) || 3,
-      downloadUrl: downloadUrl || 'https://betadrop.app/i/fCW2Qm',
-      guestUrl: guestUrl || 'https://betadrop.app/i/fCW2Qm',
-      accountUrl: accountUrl || 'https://betadrop.app/i/qQhg9L',
-      driveUrl: driveUrl || '',
+      latestVersion: latestVersion || '1.0.3',
+      buildNumber: parseInt(buildNumber) || 4,
+      downloadUrl: downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download',
+      firebaseStorageUrl: firebaseStorageUrl || 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
       releaseNotes: releaseNotes || '',
       forceUpdate: forceUpdate === true,
+      ...(onesignalRestApiKey ? { onesignalRestApiKey } : {}),
     });
 
     // Broadcast update notification to all devices via Firebase Cloud Messaging

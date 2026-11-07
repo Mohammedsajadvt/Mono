@@ -83,7 +83,6 @@ class AppUpdateService {
         String downloadUrl = data['downloadUrl']?.toString() ?? '';
         final firebaseStorageUrl =
             data['firebaseStorageUrl']?.toString() ?? '';
-        final driveUrl = data['driveUrl']?.toString() ?? '';
         final releaseNotes = data['releaseNotes']?.toString() ??
             'Performance optimizations and latest features.';
         final forceUpdate = data['forceUpdate'] == true;
@@ -107,7 +106,6 @@ class AppUpdateService {
             context,
             latestVersion: latestVersion,
             downloadUrl: downloadUrl,
-            driveUrl: driveUrl,
             releaseNotes: releaseNotes,
             forceUpdate: forceUpdate,
           );
@@ -152,7 +150,6 @@ class AppUpdateService {
     BuildContext context, {
     required String latestVersion,
     required String downloadUrl,
-    String? driveUrl,
     required String releaseNotes,
     required bool forceUpdate,
   }) {
@@ -251,26 +248,6 @@ class AppUpdateService {
                   style: GoogleFonts.inter(
                     fontWeight: FontWeight.w600,
                     color: Colors.grey.shade600,
-                  ),
-                ),
-              ),
-            if (driveUrl != null && driveUrl.trim().isNotEmpty)
-              OutlinedButton.icon(
-                onPressed: () =>
-                    _launchDownloadUrl(context, dialogCtx, driveUrl),
-                icon: const Icon(Icons.cloud_download_outlined, size: 16),
-                label: Text(
-                  'Google Drive',
-                  style: GoogleFonts.inter(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                style: OutlinedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10),
                   ),
                 ),
               ),

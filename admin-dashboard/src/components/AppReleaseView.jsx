@@ -8,7 +8,6 @@ export default function AppReleaseView({ showToast }) {
     buildNumber: 4,
     downloadUrl: 'https://mono-nbt6.onrender.com/api/app/download',
     firebaseStorageUrl: 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
-    driveUrl: 'https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing',
     releaseNotes: '',
     forceUpdate: false,
     onesignalRestApiKey: '',
@@ -37,7 +36,6 @@ export default function AppReleaseView({ showToast }) {
           buildNumber: res.config.buildNumber || 4,
           downloadUrl: res.config.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download',
           firebaseStorageUrl: res.config.firebaseStorageUrl || 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
-          driveUrl: res.config.driveUrl || 'https://drive.google.com/drive/folders/1OgtLqLPd-3Pdtc4se1oWBNiL8xeCub8H?usp=sharing',
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
           onesignalRestApiKey: res.config.onesignalRestApiKey || '',
@@ -374,18 +372,6 @@ export default function AppReleaseView({ showToast }) {
                   />
                   <small>Official Firebase Storage or App Distribution APK link.</small>
                 </div>
-              </div>
-
-              <div className="form-group">
-                <label>Google Drive Mirror URL</label>
-                <input
-                  type="url"
-                  name="driveUrl"
-                  value={formData.driveUrl}
-                  onChange={handleChange}
-                  placeholder="https://drive.google.com/drive/folders/..."
-                />
-                <small>Alternative download link for backup.</small>
               </div>
 
               <div className="form-group">

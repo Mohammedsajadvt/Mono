@@ -96,7 +96,13 @@ export default function AdminProfileModal({ onClose, showToast, onAdminUpdated }
 
         <div className="modal-body">
           {loading ? (
-            <p className="text-muted text-center" style={{ padding: '30px' }}>Loading administrator profile...</p>
+            <div style={{ padding: '24px 16px' }}>
+              <div className="centered-spinner-container" style={{ padding: '16px 0 24px' }}>
+                <div className="circular-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+              </div>
+              <div className="skeleton" style={{ width: '80%', height: 22, margin: '0 auto 12px' }} />
+              <div className="skeleton" style={{ width: '60%', height: 16, margin: '0 auto' }} />
+            </div>
           ) : (
             <form onSubmit={handleSave} autoComplete="off">
               {error && (

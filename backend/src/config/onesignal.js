@@ -3,7 +3,18 @@
  * Broadcasts push notifications to all users on the Mono mobile app
  */
 
+const path = require('path');
+const fs = require('fs');
+
 const DEFAULT_ONESIGNAL_APP_ID = '16a3ff7b-91c2-4b03-9c56-409c5fee91b6';
+
+let pushKeys = {};
+try {
+  const keysPath = path.join(__dirname, 'push_keys.json');
+  if (fs.existsSync(keysPath)) {
+    pushKeys = JSON.parse(fs.readFileSync(keysPath, 'utf8'));
+  }
+} catch (_) {}
 
 /**
  * Sends a push notification via OneSignal REST API v1
@@ -24,8 +35,8 @@ async function sendOneSignalPush({
   appId,
   apiKey,
 }) {
-  const activeAppId = appId || process.env.ONESIGNAL_APP_ID || DEFAULT_ONESIGNAL_APP_ID;
-  const activeApiKey = apiKey || process.env.ONESIGNAL_REST_API_KEY || '';
+  const activeAppId = appId || process.env.ONESIGNAL_APP_ID || pushKeys.onesignalAppId || DEFAULT_ONESIGNAL_APP_ID;
+  const activeApiKey = apiKey || process.env.ONESIGNAL_REST_API_KEY || pushKeys.onesignalRestApiKey || '';
 
   if (!title || !message) {
     return {

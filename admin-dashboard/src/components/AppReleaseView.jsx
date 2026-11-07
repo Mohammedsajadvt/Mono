@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Satellite, Save, RotateCcw, Send, Bell, Key, ExternalLink } from 'lucide-react';
+import { Rocket, Satellite, Save, RotateCcw, Send, Bell } from 'lucide-react';
 import { apiFetch } from '../api';
 
 export default function AppReleaseView({ showToast }) {
@@ -10,7 +10,6 @@ export default function AppReleaseView({ showToast }) {
     firebaseStorageUrl: 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
     releaseNotes: '',
     forceUpdate: false,
-    onesignalRestApiKey: '',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -21,7 +20,6 @@ export default function AppReleaseView({ showToast }) {
     title: 'Mono Financial Update 🚀',
     message: 'Track your daily expenses, monitor your balance, and stay within budget!',
     url: '',
-    onesignalRestApiKey: '',
   });
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState(null);
@@ -38,15 +36,7 @@ export default function AppReleaseView({ showToast }) {
           firebaseStorageUrl: res.config.firebaseStorageUrl || 'https://firebasestorage.googleapis.com/v0/b/mono-f7e35.firebasestorage.app/o/releases%2FMono_Release_v1.0.3.apk?alt=media',
           releaseNotes: res.config.releaseNotes || '',
           forceUpdate: res.config.forceUpdate === true,
-          onesignalRestApiKey: res.config.onesignalRestApiKey || '',
         });
-
-        if (res.config.onesignalRestApiKey) {
-          setPushData(prev => ({
-            ...prev,
-            onesignalRestApiKey: res.config.onesignalRestApiKey,
-          }));
-        }
       }
     } catch (err) {
       showToast(err.message, 'error');
@@ -135,7 +125,6 @@ export default function AppReleaseView({ showToast }) {
           title: pushData.title,
           message: pushData.message,
           url: pushData.url || undefined,
-          onesignalRestApiKey: pushData.onesignalRestApiKey || formData.onesignalRestApiKey || undefined,
         }),
       });
 
@@ -210,42 +199,16 @@ export default function AppReleaseView({ showToast }) {
               ></textarea>
             </div>
 
-            <div className="form-row">
-              <div className="form-group col-6">
-                <label>Action URL (Optional)</label>
-                <input
-                  type="url"
-                  name="url"
-                  value={pushData.url}
-                  onChange={handlePushChange}
-                  placeholder="https://betadrop.app/i/fCW2Qm"
-                />
-                <small>Optional web link opened when the user taps the push notification.</small>
-              </div>
-
-              <div className="form-group col-6">
-                <label>
-                  OneSignal REST API Key{' '}
-                  <a
-                    href="https://dashboard.onesignal.com/apps/16a3ff7b-91c2-4b03-9c56-409c5fee91b6/settings/keys-and-ids"
-                    target="_blank"
-                    rel="noreferrer"
-                    style={{ fontSize: 11, color: 'var(--primary-color)', marginLeft: 6, textDecoration: 'none' }}
-                  >
-                    Get API Key <ExternalLink size={10} style={{ display: 'inline', verticalAlign: 'middle' }} />
-                  </a>
-                </label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type="password"
-                    name="onesignalRestApiKey"
-                    value={pushData.onesignalRestApiKey}
-                    onChange={handlePushChange}
-                    placeholder="Enter OneSignal REST API Key (os_v2_app_...)"
-                  />
-                </div>
-                <small>Saved securely in configuration so you only need to enter it once.</small>
-              </div>
+            <div className="form-group" style={{ marginTop: 8 }}>
+              <label>Action URL (Optional)</label>
+              <input
+                type="url"
+                name="url"
+                value={pushData.url}
+                onChange={handlePushChange}
+                placeholder="https://mono-nbt6.onrender.com/api/app/download"
+              />
+              <small>Optional link or website opened when the user taps the push notification.</small>
             </div>
 
             {pushResult && (
@@ -268,15 +231,7 @@ export default function AppReleaseView({ showToast }) {
                   <div>
                     <strong>✗ Push Send Failed:</strong> {pushResult.error}
                     <div style={{ marginTop: 4, fontSize: 12 }}>
-                      Tip: Ensure your OneSignal REST API Key is entered from{' '}
-                      <a
-                        href="https://dashboard.onesignal.com/apps/16a3ff7b-91c2-4b03-9c56-409c5fee91b6/settings/keys-and-ids"
-                        target="_blank"
-                        rel="noreferrer"
-                        style={{ color: '#991B1B', textDecoration: 'underline' }}
-                      >
-                        OneSignal Settings &gt; Keys &amp; IDs
-                      </a>.
+                      Tip: Push keys are configured on the backend. You can check delivery logs in the OneSignal dashboard.
                     </div>
                   </div>
                 )}
@@ -316,7 +271,17 @@ export default function AppReleaseView({ showToast }) {
 
         <div className="card-body">
           {loading ? (
-            <p className="text-muted text-center" style={{ padding: 30 }}>Loading configuration...</p>
+            <div style={{ padding: '24px 20px' }}>
+              <div className="centered-spinner-container" style={{ padding: '16px 0 24px' }}>
+                <div className="circular-spinner" style={{ width: 44, height: 44, borderWidth: 4 }} />
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+                <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+                <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+                <div className="skeleton" style={{ height: 48, borderRadius: 10 }} />
+              </div>
+            </div>
           ) : (
             <form onSubmit={handleSubmit}>
               <div className="form-row">

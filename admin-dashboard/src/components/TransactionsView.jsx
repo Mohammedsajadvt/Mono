@@ -85,11 +85,32 @@ export default function TransactionsView({ showToast }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan="8" className="text-center text-muted" style={{ padding: '30px' }}>
-                      Loading ledger transactions...
-                    </td>
-                  </tr>
+                  <>
+                    <tr>
+                      <td colSpan="8" style={{ padding: '24px 0', borderBottom: 'none' }}>
+                        <div className="centered-spinner-container" style={{ padding: '12px 0' }}>
+                          <div className="circular-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+                        </div>
+                      </td>
+                    </tr>
+                    {Array.from({ length: 6 }).map((_, idx) => (
+                      <tr key={`skel-tx-${idx}`} className="shimmer-table-row">
+                        <td><div className="skeleton" style={{ width: 34, height: 16 }} /></td>
+                        <td>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            <div className="skeleton" style={{ width: 140, height: 16 }} />
+                            <div className="skeleton" style={{ width: 90, height: 12 }} />
+                          </div>
+                        </td>
+                        <td><div className="skeleton" style={{ width: 120, height: 16 }} /></td>
+                        <td><div className="skeleton skeleton-badge" style={{ width: 90, height: 22 }} /></td>
+                        <td><div className="skeleton skeleton-badge" style={{ width: 75, height: 20 }} /></td>
+                        <td><div className="skeleton" style={{ width: 75, height: 20 }} /></td>
+                        <td><div className="skeleton" style={{ width: 85, height: 18 }} /></td>
+                        <td><div className="skeleton skeleton-badge" style={{ width: 85, height: 20 }} /></td>
+                      </tr>
+                    ))}
+                  </>
                 ) : transactions.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center text-muted" style={{ padding: '30px' }}>

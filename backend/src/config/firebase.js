@@ -74,7 +74,7 @@ async function broadcastFirebaseAppUpdate(release = {}) {
   try {
     const version = release.latestVersion || '1.0.3';
     const notes = release.releaseNotes || 'New features and improvements are now available!';
-    const downloadUrl = release.downloadUrl || 'https://betadrop.app/i/fCW2Qm';
+    const downloadUrl = release.downloadUrl || 'https://mono-nbt6.onrender.com/api/app/download';
     const isForce = release.forceUpdate === true;
 
     console.log(`[Firebase FCM] Broadcasting update v${version} to topic 'app_updates'...`);
@@ -137,9 +137,60 @@ async function broadcastFirebaseAppUpdate(release = {}) {
   }
 }
 
+/**
+ * Broadcasts generic push notification to all devices via FCM
+ */
+async function broadcastFirebaseNotification({ title, message, url, data = {} }) {
+  try {
+    const payload = {
+      to: '/topics/all_users',
+      notification: {
+        title: title || 'Mono Financial Notification',
+        body: message || '',
+        sound: 'default',
+      },
+      data: {
+        type: 'general_push',
+        url: url || '',
+        timestamp: new Date().toISOString(),
+        ...data,
+      },
+      priority: 'high',
+    };
+
+    const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `key=${FIREBASE_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    let result = null;
+    try {
+      result = await fcmRes.json();
+    } catch (_) {
+      result = { status: fcmRes.status };
+    }
+
+    return {
+      success: true,
+      broadcastedAt: new Date().toISOString(),
+      details: result,
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message,
+    };
+  }
+}
+
 module.exports = {
   FIREBASE_API_KEY,
   FIREBASE_PROJECT_ID,
   sendFirebasePasswordReset,
   broadcastFirebaseAppUpdate,
+  broadcastFirebaseNotification,
 };

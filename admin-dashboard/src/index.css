@@ -1583,6 +1583,52 @@ input:checked + .switch-slider:before {
   border-color: var(--primary);
 }
 
+/* ================= CIRCULAR PROGRESS INDICATOR & SHIMMER ================= */
+@keyframes circularSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes spinnerPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(67, 136, 131, 0.4), 0 4px 16px rgba(67, 136, 131, 0.2);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(67, 136, 131, 0), 0 6px 20px rgba(67, 136, 131, 0.35);
+  }
+}
+
+.centered-spinner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 32px 16px;
+  width: 100%;
+}
+
+.circular-spinner {
+  border-radius: 50%;
+  border-style: solid;
+  border-color: #E2ECEB;
+  border-top-color: var(--primary);
+  border-right-color: var(--primary-light);
+  animation: circularSpin 0.85s cubic-bezier(0.5, 0.1, 0.5, 0.9) infinite, spinnerPulse 2s ease-in-out infinite;
+  box-sizing: border-box;
+}
+
+.spinner-label {
+  margin-top: 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  letter-spacing: 0.2px;
+}
+
 /* ================= SHIMMER SKELETON EFFECT ================= */
 @keyframes shimmerWave {
   0% {
@@ -1596,9 +1642,9 @@ input:checked + .switch-slider:before {
 .skeleton {
   background: linear-gradient(
     90deg,
-    #F0F4F4 0%,
-    #E1E8E8 50%,
-    #F0F4F4 100%
+    #EEF4F4 0%,
+    #DDE8E7 50%,
+    #EEF4F4 100%
   );
   background-size: 200% 100%;
   animation: shimmerWave 1.6s ease-in-out infinite;
@@ -1635,5 +1681,13 @@ input:checked + .switch-slider:before {
   border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: var(--shadow-sm);
+}
+
+.shimmer-table-row {
+  animation: fadeIn 0.3s ease;
+}
+
+.shimmer-table-row td {
+  padding: 16px 20px !important;
 }
 

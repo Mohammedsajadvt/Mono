@@ -142,7 +142,14 @@ export default function UserDetailsModal({
 
         <div className="modal-body">
           {loading || !data ? (
-            <p className="text-muted text-center" style={{ padding: '40px' }}>Loading user details...</p>
+            <div style={{ padding: '24px 16px' }}>
+              <div className="centered-spinner-container" style={{ padding: '16px 0 24px' }}>
+                <div className="circular-spinner" style={{ width: 42, height: 42, borderWidth: 4 }} />
+              </div>
+              <div className="skeleton" style={{ height: 24, width: '50%', margin: '0 auto 16px' }} />
+              <div className="skeleton" style={{ height: 18, width: '70%', margin: '0 auto 16px' }} />
+              <div className="skeleton" style={{ height: 80, width: '100%', borderRadius: 12 }} />
+            </div>
           ) : isEditing ? (
             /* ================= EDIT MODE ================= */
             <form onSubmit={handleSaveCredentials} autoComplete="off">

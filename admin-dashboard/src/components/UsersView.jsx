@@ -74,11 +74,32 @@ export default function UsersView({ showToast }) {
               </thead>
               <tbody>
                 {loading ? (
-                  <tr>
-                    <td colSpan="8" className="text-center text-muted" style={{ padding: '30px' }}>
-                      Loading user accounts...
-                    </td>
-                  </tr>
+                  <>
+                    <tr>
+                      <td colSpan="8" style={{ padding: '24px 0', borderBottom: 'none' }}>
+                        <div className="centered-spinner-container" style={{ padding: '12px 0' }}>
+                          <div className="circular-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+                        </div>
+                      </td>
+                    </tr>
+                    {Array.from({ length: 5 }).map((_, idx) => (
+                      <tr key={`skel-user-${idx}`} className="shimmer-table-row">
+                        <td><div className="skeleton" style={{ width: 34, height: 16 }} /></td>
+                        <td>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <div className="skeleton skeleton-circle" style={{ width: 32, height: 32 }} />
+                            <div className="skeleton" style={{ width: 110, height: 16 }} />
+                          </div>
+                        </td>
+                        <td><div className="skeleton" style={{ width: 160, height: 16 }} /></td>
+                        <td><div className="skeleton skeleton-badge" style={{ width: 75, height: 20 }} /></td>
+                        <td><div className="skeleton" style={{ width: 85, height: 16 }} /></td>
+                        <td><div className="skeleton" style={{ width: 85, height: 16 }} /></td>
+                        <td><div className="skeleton skeleton-badge" style={{ width: 85, height: 20 }} /></td>
+                        <td><div className="skeleton" style={{ width: 55, height: 28, borderRadius: 6 }} /></td>
+                      </tr>
+                    ))}
+                  </>
                 ) : users.length === 0 ? (
                   <tr>
                     <td colSpan="8" className="text-center text-muted" style={{ padding: '30px' }}>

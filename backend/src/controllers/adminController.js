@@ -3,7 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
 const { sendOtpEmail } = require('../config/email');
-const { broadcastFirebaseAppUpdate, FIREBASE_API_KEY } = require('../config/firebase');
+const { broadcastFirebaseAppUpdate, broadcastFirebaseNotification, FIREBASE_API_KEY } = require('../config/firebase');
 const { sendOneSignalPush, DEFAULT_ONESIGNAL_APP_ID } = require('../config/onesignal');
 const {
   validateEmail,
@@ -1198,6 +1198,14 @@ const sendPushNotification = async (req, res) => {
       apiKey = onesignalRestApiKey.trim();
     }
 
+    // 1. Dispatch push broadcast via Firebase Cloud Messaging
+    const fcmResult = await broadcastFirebaseNotification({
+      title: title.trim(),
+      message: message.trim(),
+      url: url ? url.trim() : undefined,
+    });
+
+    // 2. Dispatch push broadcast via OneSignal
     const pushResult = await sendOneSignalPush({
       title: title.trim(),
       message: message.trim(),
@@ -1211,12 +1219,24 @@ const sendPushNotification = async (req, res) => {
         message: pushResult.message || 'Push notification sent to all app devices successfully!',
         recipients: pushResult.recipients,
         id: pushResult.id,
+        fcm: fcmResult,
       });
     } else {
+      // If OneSignal API key is not yet set, but Firebase delivered
+      if (fcmResult && fcmResult.success) {
+        return res.json({
+          success: true,
+          message: 'Push notification broadcasted to all registered app devices via Firebase!',
+          fcm: fcmResult,
+          oneSignal: pushResult,
+        });
+      }
+
       return res.status(400).json({
         success: false,
         message: pushResult.message || 'Failed to send notification via OneSignal.',
         error: pushResult.error,
+        fcm: fcmResult,
       });
     }
   } catch (error) {

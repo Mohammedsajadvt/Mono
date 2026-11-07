@@ -179,9 +179,22 @@ export default function CategoriesView({ showToast }) {
         {/* CATEGORIES BODY */}
         <div className="card-body">
           {loading ? (
-            <p className="text-muted text-center" style={{ padding: 40 }}>
-              Loading categories...
-            </p>
+            <div>
+              <div className="centered-spinner-container" style={{ padding: '24px 0 28px' }}>
+                <div className="circular-spinner" style={{ width: 44, height: 44, borderWidth: 4 }} />
+              </div>
+              <div className="categories-grid">
+                {Array.from({ length: 6 }).map((_, idx) => (
+                  <div key={`skel-cat-${idx}`} className="category-card" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div className="skeleton skeleton-circle" style={{ width: 44, height: 44 }} />
+                    <div style={{ flex: 1 }}>
+                      <div className="skeleton" style={{ width: '60%', height: 16, marginBottom: 8 }} />
+                      <div className="skeleton skeleton-badge" style={{ width: 75, height: 20 }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           ) : categories.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px' }}>
               <Layers size={40} color="#CBD5E1" style={{ marginBottom: 12 }} />

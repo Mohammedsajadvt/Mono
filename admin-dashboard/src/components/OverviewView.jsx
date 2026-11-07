@@ -618,6 +618,11 @@ export default function OverviewView({ onNavigate, showToast }) {
 function OverviewSkeleton() {
   return (
     <div className="view-section">
+      {/* Centered Circular Progress Indicator with Shimmer Effect */}
+      <div className="centered-spinner-container" style={{ padding: '24px 0 28px' }}>
+        <div className="circular-spinner" style={{ width: 50, height: 50, borderWidth: 4 }} />
+      </div>
+
       {/* Top Banner Skeleton */}
       <div className="skeleton-card" style={{ marginBottom: 20, padding: 18 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>

@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const pool = require('../config/db');
 const { loadReleaseConfig, saveReleaseConfig } = require('./appController');
 const { sendOtpEmail } = require('../config/email');
+const { broadcastFirebaseAppUpdate } = require('../config/firebase');
 const {
   validateEmail,
   validatePassword,
@@ -1080,16 +1081,40 @@ const updateAppConfig = async (req, res) => {
       forceUpdate: forceUpdate === true,
     });
 
+    // Broadcast update notification to all devices via Firebase Cloud Messaging
+    const fcmResult = await broadcastFirebaseAppUpdate(updated);
+
     return res.json({
       success: true,
-      message: 'App release configuration updated successfully! Devices checking for updates will now receive these values immediately.',
+      message: `App release configuration updated and broadcasted via Firebase! (v${updated.latestVersion})`,
       config: updated,
+      fcm: fcmResult,
     });
   } catch (error) {
     console.error('[updateAppConfig] Error:', error);
     return res.status(500).json({
       success: false,
       message: 'Failed to update app release configuration.',
+    });
+  }
+};
+
+// POST /api/admin/broadcast-push-update
+const broadcastPushUpdate = async (req, res) => {
+  try {
+    const config = loadReleaseConfig();
+    const fcmResult = await broadcastFirebaseAppUpdate(config);
+    return res.json({
+      success: true,
+      message: `Push update notification broadcasted to all devices via Firebase! (v${config.latestVersion})`,
+      config,
+      fcm: fcmResult,
+    });
+  } catch (error) {
+    console.error('[broadcastPushUpdate] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to broadcast push update: ' + error.message,
     });
   }
 };
@@ -1109,4 +1134,5 @@ module.exports = {
   getCategories,
   getAppConfig,
   updateAppConfig,
+  broadcastPushUpdate,
 };

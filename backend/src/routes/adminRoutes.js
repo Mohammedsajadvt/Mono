@@ -20,6 +20,7 @@ router.get('/transactions', verifyAdminToken, adminController.getTransactions);
 router.get('/categories', verifyAdminToken, adminController.getCategories);
 router.get('/app-config', verifyAdminToken, adminController.getAppConfig);
 router.post('/app-config', verifyAdminToken, adminController.updateAppConfig);
+router.post('/broadcast-push-update', verifyAdminToken, adminController.broadcastPushUpdate);
 
 module.exports = router;
 

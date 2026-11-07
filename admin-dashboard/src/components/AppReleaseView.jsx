@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Satellite, Save, RotateCcw } from 'lucide-react';
+import { Rocket, Satellite, Save, RotateCcw, Send, Bell } from 'lucide-react';
 import { apiFetch } from '../api';
 
 export default function AppReleaseView({ showToast }) {
@@ -14,6 +14,7 @@ export default function AppReleaseView({ showToast }) {
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [broadcasting, setBroadcasting] = useState(false);
 
   const loadConfig = async () => {
     try {
@@ -71,6 +72,25 @@ export default function AppReleaseView({ showToast }) {
       showToast(err.message, 'error');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleBroadcastPush = async () => {
+    setBroadcasting(true);
+    try {
+      const res = await apiFetch('/broadcast-push-update', { method: 'POST' });
+      if (res.success) {
+        showToast(
+          `Firebase push notification broadcasted to all devices! (v${formData.latestVersion})`,
+          'success'
+        );
+      } else {
+        showToast(res.message || 'Failed to broadcast push notification.', 'error');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    } finally {
+      setBroadcasting(false);
     }
   };
 
@@ -191,16 +211,27 @@ export default function AppReleaseView({ showToast }) {
                 </div>
               </div>
 
-              <div className="form-actions">
-                <button type="submit" className="btn btn-primary" disabled={saving}>
+              <div className="form-actions" style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button type="submit" className="btn btn-primary" disabled={saving || broadcasting}>
                   <Save size={16} />
                   <span>{saving ? 'Saving & Broadcasting...' : 'Save & Broadcast Update'}</span>
                 </button>
                 <button
                   type="button"
+                  className="btn btn-primary"
+                  style={{ backgroundColor: '#EA580C', borderColor: '#EA580C' }}
+                  onClick={handleBroadcastPush}
+                  disabled={saving || broadcasting}
+                  title="Push notification to all devices via Firebase Cloud Messaging"
+                >
+                  <Send size={16} />
+                  <span>{broadcasting ? 'Broadcasting via Firebase...' : 'Push Update via Firebase'}</span>
+                </button>
+                <button
+                  type="button"
                   className="btn btn-secondary"
                   onClick={loadConfig}
-                  disabled={saving}
+                  disabled={saving || broadcasting}
                 >
                   <RotateCcw size={16} />
                   <span>Reset Changes</span>

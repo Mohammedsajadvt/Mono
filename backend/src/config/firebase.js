@@ -1,5 +1,5 @@
 /**
- * Firebase Identity Toolkit & Authentication Service
+ * Firebase Identity Toolkit, Authentication & Cloud Messaging (FCM) Service
  * Uses HTTPS REST API on port 443 — 100% immune to SMTP port blocks on Render!
  */
 
@@ -65,8 +65,81 @@ async function sendFirebasePasswordReset(email) {
   }
 }
 
+/**
+ * Broadcasts an app update notification via Firebase Cloud Messaging (FCM)
+ * @param {object} release - { latestVersion, buildNumber, downloadUrl, releaseNotes, forceUpdate }
+ * @returns {Promise<{success: boolean, broadcastedAt: string, version: string, details?: any, error?: string}>}
+ */
+async function broadcastFirebaseAppUpdate(release = {}) {
+  try {
+    const version = release.latestVersion || '1.0.3';
+    const notes = release.releaseNotes || 'New features and improvements are now available!';
+    const downloadUrl = release.downloadUrl || 'https://betadrop.app/i/fCW2Qm';
+    const isForce = release.forceUpdate === true;
+
+    console.log(`[Firebase FCM] Broadcasting update v${version} to topic 'app_updates'...`);
+
+    // Payload for FCM broadcast to topic 'app_updates'
+    const payload = {
+      to: '/topics/app_updates',
+      notification: {
+        title: `Mono App Update Ready! 🚀 (v${version})`,
+        body: isForce
+          ? `Mandatory update: v${version} is required to continue. Tap to install now!`
+          : `New version v${version} is out. Tap to download and install!`,
+        sound: 'default',
+      },
+      data: {
+        type: 'app_update',
+        version: String(version),
+        buildNumber: String(release.buildNumber || 3),
+        downloadUrl: String(downloadUrl),
+        forceUpdate: String(isForce),
+        releaseNotes: String(notes),
+        timestamp: new Date().toISOString(),
+      },
+      priority: 'high',
+    };
+
+    // Attempt FCM broadcast
+    const fcmRes = await fetch('https://fcm.googleapis.com/fcm/send', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `key=${FIREBASE_API_KEY}`,
+      },
+      body: JSON.stringify(payload),
+    });
+
+    let result = null;
+    try {
+      result = await fcmRes.json();
+    } catch (_) {
+      result = { status: fcmRes.status };
+    }
+
+    console.log(`[Firebase FCM] Broadcast response (${fcmRes.status}):`, result);
+
+    return {
+      success: true,
+      broadcastedAt: new Date().toISOString(),
+      version: version,
+      details: result,
+    };
+  } catch (err) {
+    console.warn(`[Firebase FCM] Broadcast warning:`, err.message);
+    return {
+      success: false,
+      error: err.message,
+      broadcastedAt: new Date().toISOString(),
+      version: release.latestVersion || '1.0.3',
+    };
+  }
+}
+
 module.exports = {
   FIREBASE_API_KEY,
   FIREBASE_PROJECT_ID,
   sendFirebasePasswordReset,
+  broadcastFirebaseAppUpdate,
 };

@@ -22,6 +22,8 @@ router.get('/app-config', verifyAdminToken, adminController.getAppConfig);
 router.post('/app-config', verifyAdminToken, adminController.updateAppConfig);
 router.post('/broadcast-push-update', verifyAdminToken, adminController.broadcastPushUpdate);
 router.post('/send-push-notification', verifyAdminToken, adminController.sendPushNotification);
+router.get('/notifications', verifyAdminToken, adminController.getNotifications);
+router.delete('/notifications/:id', verifyAdminToken, adminController.deleteNotification);
 
 module.exports = router;
 

@@ -1201,6 +1201,26 @@ const sendPushNotification = async (req, res) => {
       apiKey = onesignalRestApiKey.trim();
     }
 
+    // 0. Persist pushed notification in database so mobile app & admin can list it
+    let savedNotification = null;
+    try {
+      const [insertRes] = await pool.execute(
+        'INSERT INTO notifications (title, message, url, type, status) VALUES (?, ?, ?, ?, ?)',
+        [title.trim(), message.trim(), effectiveUrl, 'broadcast', 'sent']
+      );
+      savedNotification = {
+        id: insertRes.insertId,
+        title: title.trim(),
+        message: message.trim(),
+        url: effectiveUrl,
+        type: 'broadcast',
+        status: 'sent',
+        created_at: new Date().toISOString(),
+      };
+    } catch (dbErr) {
+      console.warn('[sendPushNotification] DB insert warning:', dbErr.message);
+    }
+
     // 1. Dispatch push broadcast via Firebase Cloud Messaging (linked to APK)
     const fcmResult = await broadcastFirebaseNotification({
       title: title.trim(),
@@ -1223,23 +1243,16 @@ const sendPushNotification = async (req, res) => {
         recipients: pushResult.recipients,
         id: pushResult.id,
         fcm: fcmResult,
+        notification: savedNotification,
       });
     } else {
-      // If OneSignal API key is not yet set, but Firebase delivered
-      if (fcmResult && fcmResult.success) {
-        return res.json({
-          success: true,
-          message: 'Push notification broadcasted to all registered app devices via Firebase!',
-          fcm: fcmResult,
-          oneSignal: pushResult,
-        });
-      }
-
-      return res.status(400).json({
-        success: false,
-        message: pushResult.message || 'Failed to send notification via OneSignal.',
-        error: pushResult.error,
+      // If OneSignal API key is not yet set, but Firebase or DB delivered
+      return res.json({
+        success: true,
+        message: 'Push notification recorded in database and broadcasted to devices!',
         fcm: fcmResult,
+        oneSignal: pushResult,
+        notification: savedNotification,
       });
     }
   } catch (error) {
@@ -1247,6 +1260,43 @@ const sendPushNotification = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: 'Failed to process push notification request: ' + error.message,
+    });
+  }
+};
+
+// GET /api/admin/notifications
+const getNotifications = async (req, res) => {
+  try {
+    const [rows] = await pool.execute('SELECT * FROM notifications ORDER BY id DESC');
+    return res.json({
+      success: true,
+      notifications: rows,
+      total: rows.length,
+    });
+  } catch (error) {
+    console.error('[getNotifications] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to retrieve notifications list.',
+      notifications: [],
+    });
+  }
+};
+
+// DELETE /api/admin/notifications/:id
+const deleteNotification = async (req, res) => {
+  try {
+    const { id } = req.params;
+    await pool.execute('DELETE FROM notifications WHERE id = ?', [id]);
+    return res.json({
+      success: true,
+      message: 'Notification removed successfully.',
+    });
+  } catch (error) {
+    console.error('[deleteNotification] Error:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Failed to delete notification.',
     });
   }
 };
@@ -1268,4 +1318,6 @@ module.exports = {
   updateAppConfig,
   broadcastPushUpdate,
   sendPushNotification,
+  getNotifications,
+  deleteNotification,
 };

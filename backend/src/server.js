@@ -24,6 +24,7 @@ const aiRoutes = require('./routes/aiRoutes');
 const appRoutes = require('./routes/appRoutes');
 const adminRoutes = require('./routes/adminRoutes');
 const receiptRoutes = require('./routes/receiptRoutes');
+const notificationRoutes = require('./routes/notificationRoutes');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -87,6 +88,7 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/ai', aiRoutes);
 app.use('/api/receipts', receiptRoutes);
 app.use('/api/app', appRoutes);
+app.use('/api/notifications', notificationRoutes);
 app.use('/api/admin', adminRoutes);
 
 // 404 Route Handler

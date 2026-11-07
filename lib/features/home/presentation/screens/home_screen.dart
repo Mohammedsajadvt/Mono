@@ -15,6 +15,7 @@ import 'package:mono_app/features/expense/bloc/expense_event.dart';
 import 'package:mono_app/features/expense/bloc/expense_state.dart';
 import 'package:mono_app/features/expense/models/transaction_model.dart';
 import 'package:mono_app/features/home/presentation/screens/all_transactions_screen.dart';
+import 'package:mono_app/features/notifications/presentation/notification_center_modal.dart';
 
 class HomeScreen extends StatefulWidget {
   final VoidCallback onAddExpensePressed;
@@ -184,6 +185,43 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                                         color: Colors.white,
                                         fontSize: 12,
                                         fontWeight: FontWeight.w700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            // Notification Center Bell Button
+                            GestureDetector(
+                              onTap: () => NotificationCenterModal.show(context),
+                              child: Container(
+                                padding: const EdgeInsets.all(7),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withOpacity(0.22),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(
+                                    color: Colors.white.withOpacity(0.4),
+                                  ),
+                                ),
+                                child: Stack(
+                                  clipBehavior: Clip.none,
+                                  children: [
+                                    const Icon(
+                                      Icons.notifications_outlined,
+                                      color: Colors.white,
+                                      size: 19,
+                                    ),
+                                    Positioned(
+                                      top: -1,
+                                      right: -1,
+                                      child: Container(
+                                        width: 7,
+                                        height: 7,
+                                        decoration: const BoxDecoration(
+                                          color: Colors.amberAccent,
+                                          shape: BoxShape.circle,
+                                        ),
                                       ),
                                     ),
                                   ],

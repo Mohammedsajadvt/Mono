@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Rocket, Satellite, Save, RotateCcw, Send, Bell } from 'lucide-react';
+import { Rocket, Satellite, Save, RotateCcw, Send, Bell, Trash2 } from 'lucide-react';
 import { apiFetch } from '../api';
 
 export default function AppReleaseView({ showToast }) {
@@ -23,6 +23,10 @@ export default function AppReleaseView({ showToast }) {
   });
   const [sendingPush, setSendingPush] = useState(false);
   const [pushResult, setPushResult] = useState(null);
+
+  // Notification History List state
+  const [notificationsList, setNotificationsList] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
 
   const loadConfig = async () => {
     try {
@@ -51,8 +55,36 @@ export default function AppReleaseView({ showToast }) {
     }
   };
 
+  const loadNotifications = async () => {
+    try {
+      setLoadingNotifications(true);
+      const res = await apiFetch('/notifications');
+      if (res.success && Array.isArray(res.notifications)) {
+        setNotificationsList(res.notifications);
+      }
+    } catch (err) {
+      console.warn('Failed to load notifications list:', err);
+    } finally {
+      setLoadingNotifications(false);
+    }
+  };
+
+  const handleDeleteNotification = async (id) => {
+    if (!window.confirm('Delete this notification from history and user devices?')) return;
+    try {
+      const res = await apiFetch(`/notifications/${id}`, { method: 'DELETE' });
+      if (res.success) {
+        setNotificationsList(prev => prev.filter(n => n.id !== id));
+        showToast('Notification deleted successfully.', 'success');
+      }
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  };
+
   useEffect(() => {
     loadConfig();
+    loadNotifications();
   }, []);
 
   const handleChange = (e) => {
@@ -141,6 +173,7 @@ export default function AppReleaseView({ showToast }) {
           id: res.id,
         });
         showToast(res.message || 'Push notification sent to all app users successfully!', 'success');
+        loadNotifications();
       } else {
         setPushResult({
           success: false,
@@ -259,7 +292,124 @@ export default function AppReleaseView({ showToast }) {
         </div>
       </div>
 
-      {/* CARD 2: App Version & Release Configuration */}
+      {/* CARD 2: Pushed Notifications History & Feed */}
+      <div className="card">
+        <div className="card-header">
+          <div>
+            <h3 className="card-title">
+              <Bell size={18} /> Pushed Notification History &amp; App Device Feed
+            </h3>
+            <p className="card-subtitle">
+              All broadcasts delivered to users' phones and displayed in the in-app Notification Center
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={loadNotifications}
+            disabled={loadingNotifications}
+          >
+            <RotateCcw size={13} /> Refresh List
+          </button>
+        </div>
+
+        <div className="card-body" style={{ padding: 0 }}>
+          {loadingNotifications ? (
+            <div style={{ padding: 32 }}>
+              <div className="centered-spinner-container">
+                <div className="circular-spinner" style={{ width: 40, height: 40, borderWidth: 3 }} />
+              </div>
+            </div>
+          ) : notificationsList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)' }}>
+              <Bell size={36} style={{ opacity: 0.35, marginBottom: 10 }} />
+              <p>No push notifications recorded yet. Send your first broadcast above!</p>
+            </div>
+          ) : (
+            <div className="table-responsive">
+              <table className="data-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: 60 }}>#ID</th>
+                    <th>Notification Details</th>
+                    <th>Linked Action URL</th>
+                    <th>Status</th>
+                    <th>Dispatched At</th>
+                    <th style={{ textAlign: 'right' }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {notificationsList.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>#{item.id}</strong></td>
+                      <td>
+                        <div>
+                          <strong style={{ color: 'var(--text-primary)', fontSize: 14 }}>{item.title}</strong>
+                          <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-secondary)' }}>
+                            {item.message}
+                          </p>
+                        </div>
+                      </td>
+                      <td>
+                        {item.url ? (
+                          <a
+                            href={item.url}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{
+                              color: 'var(--primary)',
+                              fontSize: 12.5,
+                              textDecoration: 'none',
+                              wordBreak: 'break-all',
+                            }}
+                          >
+                            {item.url}
+                          </a>
+                        ) : (
+                          <span className="text-muted" style={{ fontSize: 12 }}>None</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className="badge badge-teal">
+                          ✓ Sent / Active
+                        </span>
+                      </td>
+                      <td>
+                        <span className="text-muted" style={{ fontSize: 12.5 }}>
+                          {new Date(item.created_at).toLocaleString('en-IN', {
+                            dateStyle: 'medium',
+                            timeStyle: 'short',
+                          })}
+                        </span>
+                      </td>
+                      <td style={{ textAlign: 'right' }}>
+                        <button
+                          type="button"
+                          className="btn btn-outline-danger btn-sm"
+                          style={{
+                            padding: '4px 8px',
+                            color: '#DC2626',
+                            borderColor: '#FECACA',
+                            background: '#FEF2F2',
+                            borderRadius: 6,
+                            cursor: 'pointer',
+                          }}
+                          onClick={() => handleDeleteNotification(item.id)}
+                          title="Delete notification"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* CARD 3: App Version & Release Configuration */}
       <div className="card">
         <div className="card-header">
           <div>

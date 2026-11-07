@@ -329,10 +329,18 @@ const requestPasswordReset = async (req, res) => {
     // Send email with confirmation code via Firebase Auth / SMTP
     const emailResult = await sendOtpEmail(cleanEmail, otpCode, users[0].name);
 
+    if (!emailResult.sent) {
+      console.error(`[requestPasswordReset] Email delivery failed for ${cleanEmail}:`, emailResult.error);
+      return res.status(502).json({
+        success: false,
+        message: 'Could not deliver password reset email. Please ensure Firebase Authentication is enabled or email service is active.',
+      });
+    }
+
+    // High security: Never expose OTP code in HTTP response
     return res.json({
       success: true,
-      message: 'A 6-digit verification code has been sent to your email.',
-      code: !emailResult.sent ? otpCode : undefined,
+      message: `A verification code has been dispatched to ${cleanEmail}. Please check your Gmail inbox.`,
     });
   } catch (error) {
     console.error('[AuthController.requestPasswordReset] Error:', error);

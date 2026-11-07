@@ -303,11 +303,19 @@ const adminForgotPassword = async (req, res) => {
     // Send real email via Firebase Auth / Nodemailer using sendOtpEmail
     const emailResult = await sendOtpEmail(targetEmail, otpCode, admin.username || 'Administrator');
 
+    if (!emailResult.sent) {
+      console.error(`[adminForgotPassword] Email delivery failed for ${targetEmail}:`, emailResult.error);
+      return res.status(502).json({
+        success: false,
+        message: `Could not deliver password reset email to ${targetEmail}. Please ensure Firebase Authentication is enabled or email service is active.`,
+      });
+    }
+
+    // High security: Never expose OTP code in HTTP response
     return res.json({
       success: true,
-      message: `A 6-digit verification code has been sent to ${targetEmail}.`,
+      message: `A verification code has been dispatched to ${targetEmail}. Please check your Gmail inbox.`,
       email: targetEmail,
-      code: !emailResult.sent ? otpCode : undefined,
     });
   } catch (error) {
     console.error('[adminForgotPassword] Error:', error);

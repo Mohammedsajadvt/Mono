@@ -147,10 +147,8 @@ export default function LoginView({ onLoginSuccess }) {
 
       const data = await res.json();
       if (res.ok && data.success) {
-        if (data.code) {
-          setResetOtp(data.code);
-        }
-        setSuccess(data.message || `A 6-digit confirmation code has been sent to ${resetEmail}.`);
+        setResetOtp('');
+        setSuccess(data.message || `A 6-digit confirmation code has been sent to ${resetEmail}. Please check your Gmail.`);
         setMode('reset');
       } else {
         setError(data.message || 'No registered administrator account found with that email.');
